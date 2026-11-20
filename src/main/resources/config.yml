@@ -1,0 +1,214 @@
+# ======================================================================================
+#  SCP079 - configuration
+#  Apply changes with /scp079 reload. Player-facing texts are in messages.yml,
+#  the AI persona is in system_prompt.txt, the API key is in secrets.yml.
+# ======================================================================================
+
+gemini:
+  # Model id from https://aistudio.google.com/docs/models . A small, fast "Flash-Lite" model is plenty
+  # for three-sentence replies and is the kindest to free-tier rate limits.
+  model: "gemini-3.5-flash-lite"
+  # Base URL of the Gemini REST API. The request goes to <endpoint>/models/<model>:generateContent
+  endpoint: "https://generativelanguage.googleapis.com/v1beta"
+  # 0.0 - 2.0. Higher = more varied answers. (Google ignores this on some newer models.)
+  temperature: 0.9
+  # Upper limit of one reply, in tokens. Keep it small: SCP-079 speaks in at most 3 sentences.
+  # NOTE: on "thinking" models the model's hidden reasoning counts against this limit too. If replies
+  # come back empty or cut off, raise this (e.g. 400) or set thinking-level below.
+  max-output-tokens: 120
+  # Optional thinkingConfig.thinkingLevel sent with every request: "minimal", "low", "medium", "high".
+  # Empty = not sent (the model's own default). Which values a model accepts differs per model - an
+  # unsupported value makes every request fail with HTTP 400, which /scp079 test will show.
+  thinking-level: ""
+  # Seconds before a request is given up.
+  timeout-seconds: 15
+  # Minimum time between two chat messages of one player to SCP-079.
+  player-cooldown-seconds: 3
+  # How many requests may be in flight at once, server-wide. Further ones get the "busy" message.
+  max-concurrent-requests: 4
+
+conversation:
+  # How many turns (one turn = a player message + the reply) SCP-079 remembers per player.
+  history-turns: 10
+  # How long a player's conversation memory is kept after they walk away or log out.
+  memory-minutes: 30
+  # Player messages longer than this are cut before they are sent to Gemini.
+  max-message-length: 300
+  # Hard limit applied to every reply, whatever the model wrote.
+  max-sentences: 3
+  # What SCP-079 is told (as the "user" turn) when a player walks up, to make it speak first.
+  greeting-prompt: "(A human has just walked up to your terminal. Greet them in one or two short sentences.)"
+
+proximity:
+  # How often players near units are checked, in ticks (20 ticks = 1 second).
+  check-interval-ticks: 20
+  # Players must be within this distance (blocks) of a unit to speak to it. Walking in starts the
+  # conversation (SCP-079 greets the player); walking out ends it.
+  talk-radius: 5.0
+  # Per player and unit: seconds before walking up again produces a new AI greeting.
+  greeting-cooldown-seconds: 120
+
+# SCP-079's words appear as captions: a semi-transparent black box just above the hotbar (where the
+# action bar is), typed out letter by letter. Captions are drawn by the resource pack's text shader,
+# so they need the pack (see resourcepack below). The caption font is a terminal font: capitals only.
+captions:
+  enabled: true
+  # 1.0 = one caption pixel is one GUI pixel.
+  scale: 1.0
+  # Distance from the bottom of the screen to the bottom of the box, in GUI pixels. 57 puts a
+  # one-line caption exactly where the action bar text is.
+  bottom-offset: 57
+  # Opacity of the black box, 0.11 - 1.0.
+  background-opacity: 0.55
+  # Text colour.
+  color: "#7DFF99"
+  # Typing speed. 1 = 20 characters a second.
+  characters-per-tick: 1.0
+  # How long a finished caption stays before it disappears (or the next part follows), in ticks.
+  hold:
+    base-ticks: 40
+    ticks-per-character: 1.0
+    max-ticks: 160
+  # Also write what SCP-079 says into chat?
+  #   FALLBACK  only for players who cannot see captions (no pack, declined, download failed)
+  #   ALWAYS    for everybody
+  #   NEVER     for nobody (players without the pack then get nothing)
+  in-chat: FALLBACK
+
+chat:
+  # true  = messages typed near SCP-079 are NOT broadcast; only the player gets the answer.
+  # false = the message stays in public chat, and everyone near the unit gets SCP-079's answer.
+  private: true
+  # How a line of SCP-079 looks when it is written into chat (see captions.in-chat). <message> is the
+  # text. MiniMessage format; a literal "<" is written "\<".
+  format: '<green>\<SCP-079></green> <#7CFC9A><message>'
+  # In private mode the player's own line is echoed back like this (empty = no echo).
+  echo-format: '<dark_gray>\<</dark_gray><gray><player> → SCP-079</gray><dark_gray>></dark_gray> <gray><message>'
+  # Chat only: a short pause before the reply appears, as if it were being typed.
+  typing-delay:
+    enabled: true
+    base-ticks: 10
+    ticks-per-character: 0.25
+    max-ticks: 50
+  sound:
+    enabled: true
+    # Any sound event id, see https://minecraft.wiki/w/Sounds.json
+    name: "minecraft:block.note_block.bit"
+    volume: 0.6
+    pitch: 0.7
+
+units:
+  # Admins (scp079.admin) remove a unit by punching it.
+  punch-to-remove: true
+  # ...and it drops the SCP-079 item when removed that way.
+  drop-item: true
+  item:
+    # Base material of the placeable item. Any item works; the item is recognised by hidden data, not by this.
+    material: OBSERVER
+    name: "<green>SCP-079"
+    lore:
+      - "<gray>Right-click a block to install."
+    # true = the item looks like the model (scp079:<active model> from the pack). Players without the
+    # pack see a missing-model cube in the hand; set false to show the plain material instead.
+    use-pack-model: true
+
+visual:
+  # How placed units are drawn. The model is ALWAYS the active .bbmodel - there is no other design.
+  #   PACK_MODEL  the exact .bbmodel with its own textures, from the generated resource pack. (default)
+  #               Players WITHOUT the pack see a missing-model cube.
+  #   LIVE_CUBES  no pack needed: the model's shape rebuilt from vanilla blocks, one block display
+  #               per cube, each coloured with the closest vanilla block. A stand-in, not the real look.
+  render-mode: PACK_MODEL
+  # Size multiplier. 1.0 = Blockbench size (16 px = 1 block).
+  scale: 1.0
+  # true = a new unit's front faces the player who placed it; false = it faces south (yaw 0).
+  face-placer: true
+  # The facing is rounded to this many degrees (90 = the four compass directions, 0 = free).
+  rotation-snap: 45
+  # Degrees added to the facing of every unit (use 180 if your model's front is not Blockbench north).
+  rotation-offset: 0
+  # Display entity view range multiplier (1.0 = about 64 blocks for a block-sized display).
+  view-range: 1.0
+  # Light level the model is drawn with, 0-15, or -1 for the light of the place it stands in.
+  brightness: -1
+  # Light level of glowing cubes (see emissive-keywords), so the screen is readable in dark rooms.
+  emissive-brightness: 15
+  # LIVE_CUBES: join neighbouring cubes of the same block into one display where the result is a box.
+  merge-cubes: true
+  # LIVE_CUBES: never spawn more displays than this per unit (the smallest cubes are dropped first)...
+  max-cubes: 256
+  # ...and warn in the log and in /scp079 pack info above this.
+  warn-cubes: 96
+  # LIVE_CUBES: a cube glows when its name (or one of its groups) contains one of these words, or when
+  # the cube has "light emission" set in Blockbench.
+  emissive-keywords: [screen, glow, light, led, emissive]
+  # LIVE_CUBES: force a block for a cube. Key = cube name, group name or texture name (without .png),
+  # value = block. Checked before any colour matching.
+  block-overrides: {}
+  #  screen: lime_stained_glass
+  #  base: iron_block
+  palette:
+    # Shown when a cube's texture cannot be read.
+    default-block: gray_concrete
+    # true = start from the built-in palette (all concrete, terracotta and wool colours plus a few
+    # neutral blocks; stained glass for see-through cubes; sea lantern, froglights, glowstone, emerald
+    # block... for glowing cubes) and add the entries below. false = ONLY the entries below.
+    use-defaults: true
+    # block: "#rrggbb" (the colour the block stands for). A cube gets the block with the closest colour.
+    solid: {}
+    #  smooth_basalt: "#48484E"
+    glass: {}
+    emissive: {}
+    # A cube whose texture is less opaque than this on average becomes glass / is left out.
+    glass-below-opacity: 0.6
+    invisible-below-opacity: 0.05
+
+models:
+  # File in plugins/SCP079/models/ that units show ("scp079.bbmodel"; the extension may be left out).
+  # Empty = the first .bbmodel in the folder.
+  active-model: "scp079.bbmodel"
+  # Watch the models folder and rebuild the pack + refresh units automatically when a file changes.
+  watch-folder: false
+  watch-debounce-ms: 1500
+
+# The pack carries the model (PACK_MODEL) and the captions. It is generated from the models folder on
+# every start and reload: plugins/SCP079/SCP079-pack.zip and plugins/SCP079/resourcepack/.
+resourcepack:
+  # How players get the pack:
+  #   auto       same-port, or http when the Minecraft port cannot be used            (default)
+  #   same-port  served on the Minecraft port itself - nothing to open in a firewall.
+  #              Does not work behind a Velocity/Bungee proxy.
+  #   http       served by a small built-in web server on http.port (must be reachable by players)
+  #   url        you upload SCP079-pack.zip yourself and set url below
+  #   none       you merged resourcepack/ into your own server pack; nothing is sent
+  delivery: auto
+  # Host name or IP players reach this server by. Empty = the address each player typed to connect.
+  public-host: ""
+  http:
+    bind: "0.0.0.0"
+    port: 8079
+  # delivery url: public address of the uploaded zip...
+  url: ""
+  # ...and its SHA-1. Empty = the hash of the zip this plugin generated (see /scp079 pack info).
+  sha1: ""
+  # true = players who decline are disconnected by the client.
+  required: false
+  # Text on the pack prompt (MiniMessage). Empty = the client's default text.
+  prompt: "<green>SCP-079</green> <gray>- model and captions"
+  # Ticks after joining before the pack is sent. Later than other plugins' packs, so that this pack
+  # ends up on top (the top pack's text shader is the one that runs).
+  send-delay-ticks: 80
+  # Other plugins that replace the same text shader. Minecraft runs only the top pack's copy, so the
+  # caption shader is built on top of the first of these zips that exists (paths relative to
+  # plugins/, most complete first) and keeps their HUDs working.
+  text-shader-sources:
+    IdCards: IdCards/idcards-pack.zip
+    Radio: Radio/radio-pack.zip
+    SuperbVehicles: SuperbVehicles/pack/SuperbVehicles-hud.zip
+    CCTV: CCTV/cctv-pack.zip
+  # Written to pack.mcmeta. 26.3 is resource pack format 97; raise max when a newer client complains
+  # that the pack "was made for an older version".
+  format:
+    min: 97
+    max: 97
+  description: "SCP-079"

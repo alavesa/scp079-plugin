@@ -1,0 +1,19 @@
+name: SCP079
+version: '${version}'
+main: fi.alavesa.scp079.Scp079Plugin
+api-version: '26.3'
+description: SCP-079, a placeable AI supercomputer that talks to players through Google Gemini
+author: Piia Alavesa
+load: POSTWORLD
+
+# The /scp079 command (alias /079) is registered in code through Paper's Brigadier API (see Scp079Command).
+
+permissions:
+  scp079.admin:
+    description: Every /scp079 command, placing and removing units, and technical error details
+    default: op
+    children:
+      scp079.talk: true
+  scp079.talk:
+    description: Be noticed by SCP-079 and talk to it
+    default: true

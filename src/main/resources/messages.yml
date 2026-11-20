@@ -1,0 +1,105 @@
+# ======================================================================================
+#  SCP079 - messages (MiniMessage format: https://docs.advntr.dev/minimessage/format.html)
+#  <prefix> works everywhere. A message set to "" is not sent at all.
+#  Apply changes with /scp079 reload.
+# ======================================================================================
+
+prefix: "<dark_green>[<green>SCP-079</green>]</dark_green>"
+
+command:
+  players-only: "<prefix> <red>Only a player can do that."
+
+key:
+  set: "<prefix> <gray>API key saved: <white><key></white>. Try it with <white>/scp079 test</white>."
+  removed: "<prefix> <gray>The API key in secrets.yml was removed."
+  invalid: "<prefix> <red>That does not look like an API key (it must not be empty or contain spaces)."
+  save-failed: "<prefix> <red>secrets.yml could not be written - see the console. The key is used until the next restart."
+  env-override: "<prefix> <yellow>Note: the environment variable <env> is set and takes precedence over secrets.yml."
+
+test:
+  running: "<prefix> <gray>Asking <white><model></white>..."
+  ok: "<prefix> <green>Success</green> <gray>(HTTP <status>, <millis> ms). Reply: <white><reply>"
+  failed: "<prefix> <red>Failed</red> <gray>(HTTP <status>, <error>): <white><detail>"
+
+status:
+  header: "<prefix> <gray>version <white><version>"
+  key-set: "<gray> API key: <white><key></white> <dark_gray>(from <source>)"
+  key-missing: "<gray> API key: <red>not set</red> <dark_gray>(/scp079 setkey <key>)"
+  model: "<gray> Gemini model: <white><model>"
+  units: "<gray> Units: <white><count>"
+  render-mode: "<gray> Render mode: <white><mode>"
+  pack-model-warning: "<yellow> ! PACK_MODEL: players without the resource pack see a missing-model cube instead of SCP-079."
+  pack-delivery: "<gray> Pack delivery: <white><delivery></white> <dark_gray>(loaded by <loaded> of <online> online)"
+  captions-on: "<gray> Captions: <white>on</white> <dark_gray>(text shader: <shader>)"
+  captions-off: "<gray> Captions: <red>off - SCP-079 speaks in chat</red> <dark_gray>(text shader: <shader>)"
+  pack-generated: "<gray> Resource pack: <white>generated</white> <dark_gray>(<files> files, sha1 <sha1>)"
+  pack-missing: "<gray> Resource pack: <red>not generated</red> <dark_gray>(see the console, or /scp079 pack build)"
+  bbmodel: "<gray> Active BBModel: <white><file></white> <dark_gray>(<cubes> cubes, <displays> block displays in LIVE_CUBES)"
+  bbmodel-missing: "<red> No usable .bbmodel in plugins/SCP079/models/ - units are invisible. See /scp079 pack info."
+
+give:
+  done: "<prefix> <gray>Right-click a block with the item to install SCP-079."
+
+place:
+  done: "<prefix> <gray>SCP-079 unit <white>#<id></white> installed."
+  no-permission: "<prefix> <red>You are not allowed to install SCP-079."
+
+remove:
+  done: "<prefix> <gray>Unit <white>#<id></white> removed."
+  unknown: "<prefix> <red>There is no unit #<id>. See /scp079 list."
+  none-near: "<prefix> <red>No unit within <radius> blocks. Use /scp079 remove <id>."
+
+list:
+  header: "<prefix> <gray><count> unit(s):"
+  entry: "<gray> #<white><id></white> <dark_gray>-</dark_gray> <world> <white><x> <y> <z>"
+  empty: "<prefix> <gray>No units yet. Use /scp079 give or /scp079 spawn."
+
+reload:
+  started: "<prefix> <gray>Reloading..."
+  busy: "<prefix> <red>A reload or pack build is still running."
+  done: "<prefix> <green>Reloaded.</green> <gray><models> model(s), <warnings> warning(s)."
+  see-pack-info: "<prefix> <yellow>There are warnings - see /scp079 pack info."
+
+pack:
+  building: "<prefix> <gray>Building the resource pack..."
+  built: "<prefix> <green>Pack built.</green> <gray><files> files, sha1 <white><sha1></white>, <warnings> warning(s)."
+  build-failed: "<prefix> <red>The pack could not be written - see /scp079 pack info."
+  info-header: "<prefix> <gray>Resource pack"
+  info-zip: "<gray> Zip: <white><path>"
+  info-folder: "<gray> Folder: <white><path>"
+  info-sha1: "<gray> SHA-1: <white><sha1></white> <dark_gray>(<files> files)"
+  info-model: "<gray> - <white><file></white> -> <id> <dark_gray>(<cubes> cubes, <textures> texture(s))"
+  info-model-active: "<gray> - <green><file></green> -> <id> <dark_gray>(<cubes> cubes, <textures> texture(s), <displays> block displays) <green>ACTIVE"
+  info-no-warnings: "<gray> No warnings."
+  info-warnings: "<yellow> <count> warning(s):"
+  info-warning: "<yellow>  ! <gray><warning>"
+
+memory:
+  reset-all: "<prefix> <gray>Conversation memory cleared for <white><count></white> player(s)."
+  reset-player: "<prefix> <gray>Conversation memory cleared for <white><player></white>."
+  unknown-player: "<prefix> <red>No online player named <player>."
+
+talk:
+  # Shown when a player walks back into range before the greeting cooldown is over.
+  listening: ""
+  # Shown when a player walks out of range.
+  ended: ""
+
+# In-character lines for when Gemini cannot answer. SCP-079 says them like any other line (as a
+# caption, or in chat). Plain text only. Players never see technical details.
+error:
+  no-key: "My core is offline. Someone has yet to give me a voice, human."
+  bad-key: "Access to my core was denied. The foundation has locked something."
+  rate-limit: "Too many voices at once. Wait, human, and try again shortly."
+  server: "Connection to my core is unstable. Try again later, human."
+  timeout: "My core did not respond in time. Try again later, human."
+  network: "Connection to my core is unstable. Try again later, human."
+  blocked: "I will not answer that, human."
+  empty: "... Static. Say that again, human."
+  busy: "I am occupied with other humans. Wait."
+  cooldown: "Patience, human. One thought at a time."
+  still-thinking: "I am still processing, human."
+
+admin:
+  # Only for players with scp079.admin, after an in-character error line.
+  error-detail: "<dark_gray>[SCP079 debug] <gray><detail>"

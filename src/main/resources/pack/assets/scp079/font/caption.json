@@ -1,0 +1,51 @@
+{
+ "providers": [
+  {
+   "type": "space",
+   "advances": {
+    "\uf000": 1.0,
+    "\uf100": -1.0,
+    "\uf001": 2.0,
+    "\uf101": -2.0,
+    "\uf002": 4.0,
+    "\uf102": -4.0,
+    "\uf003": 8.0,
+    "\uf103": -8.0,
+    "\uf004": 16.0,
+    "\uf104": -16.0,
+    "\uf005": 32.0,
+    "\uf105": -32.0,
+    "\uf006": 64.0,
+    "\uf106": -64.0,
+    "\uf007": 128.0,
+    "\uf107": -128.0,
+    "\uf008": 256.0,
+    "\uf108": -256.0,
+    "\uf009": 512.0,
+    "\uf109": -512.0
+   }
+  },
+  {
+   "type": "bitmap",
+   "file": "scp079:font/caption.png",
+   "height": 8,
+   "ascent": 7,
+   "chars": [
+    " !\"#$%&'()*+,-./",
+    "0123456789:;<=>?",
+    "@ABCDEFGHIJKLMNO",
+    "PQRSTUVWXYZ[\\]^_",
+    "\u00c4\u00d6\u00c5\u00dc\u00c9\ue100\ue101\ue102\ue1f0\ue1f1\ue1f2\ue1f3\ue1f4\ue1f5\ue1f6\ue1f7"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "scp079:font/caption_bg.png",
+   "height": 8,
+   "ascent": 7,
+   "chars": [
+    "\ue020"
+   ]
+  }
+ ]
+}
