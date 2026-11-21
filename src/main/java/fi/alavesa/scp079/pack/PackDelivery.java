@@ -47,6 +47,12 @@ public final class PackDelivery implements Listener {
     /** Fixed id: clients and the status event identify our pack by it across restarts. */
     public static final UUID PACK_ID = UUID.nameUUIDFromBytes("scp079:pack".getBytes(StandardCharsets.UTF_8));
 
+    /**
+     * The Intercom pack. Its text shader is built on top of ours (it reads SCP079-pack.zip and adds its own lines), so
+     * it belongs above the SCP079 pack: sending ours again after it would only start a tug of war over the top place.
+     */
+    private static final UUID INTERCOM_PACK_ID = UUID.nameUUIDFromBytes("intercom:pack".getBytes(StandardCharsets.UTF_8));
+
     /** How often our pack is sent again to stay above a pack that loaded after it, per player and session. */
     private static final int MAX_REPUSHES = 3;
 
@@ -196,7 +202,7 @@ public final class PackDelivery implements Listener {
         // loaded: it sits above ours, and if it carries a text shader without our hooks, captions do not work.
         // Send ours again - capped, so two plugins doing the same cannot ping-pong for ever. Past the cap the
         // player is marked as buried and SCP-079 speaks to them in chat.
-        if (!plugin.captionShaderShipped() || !sent.contains(id)) return;
+        if (!plugin.captionShaderShipped() || !sent.contains(id) || INTERCOM_PACK_ID.equals(event.getID())) return;
         Set<UUID> newer = pushedAfterOurs.computeIfAbsent(id, k -> new HashSet<>());
         if (st == PlayerResourcePackStatusEvent.Status.ACCEPTED) {
             newer.add(event.getID());
