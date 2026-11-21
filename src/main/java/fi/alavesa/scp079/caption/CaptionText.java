@@ -49,8 +49,32 @@ public final class CaptionText {
      * @param revealed how many characters of the page are shown yet (the box has its final size from the start)
      */
     public static Component page(List<String> lines, int revealed, int palette) {
+        return page(lines, revealed, palette, 0);
+    }
+
+    /**
+     * A caption that is longer than the box scrolls: the box shows the line being typed and the lines just
+     * above it, and when a line is full the text moves up by one - no pause, no new caption.
+     *
+     * @param lines    the whole reply, wrapped (see {@link #wrap}); any number of lines
+     * @param revealed how many characters of the reply are shown yet
+     */
+    public static Component scrolling(List<String> lines, int revealed, int palette) {
+        int longest = 1, current = 0, before = 0;
+        for (String line : lines) longest = Math.max(longest, line.length());
+        // the line the last shown character is on
+        while (current < lines.size() - 1 && revealed > before + lines.get(current).length()) before += lines.get(current++).length();
+        int first = Math.max(0, current - MAX_LINES + 1);
+        int skipped = 0;
+        for (int i = 0; i < first; i++) skipped += lines.get(i).length();
+        // the box is as wide as the widest line of the whole reply, so it does not change size while scrolling
+        return page(lines.subList(first, Math.min(lines.size(), first + MAX_LINES)), revealed - skipped, palette, longest);
+    }
+
+    /** @param minColumns the box is at least this many characters wide (0 = as wide as these lines) */
+    private static Component page(List<String> lines, int revealed, int palette, int minColumns) {
         int count = Math.min(lines.size(), MAX_LINES);
-        int longest = 1;
+        int longest = Math.max(1, minColumns);
         for (int i = 0; i < count; i++) longest = Math.max(longest, lines.get(i).length());
 
         TextComponent.Builder out = Component.text();

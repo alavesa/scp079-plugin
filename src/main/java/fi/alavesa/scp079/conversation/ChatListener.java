@@ -11,10 +11,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
- * Routes the chat of players who are in a conversation to SCP-079.
+ * Lets SCP-079 hear the chat of players who are in a conversation with it.
  * <p>
- * The chat event runs off the server thread. Nothing here touches the world: it reads one volatile flag,
- * optionally cancels the event, and schedules the real work on the server thread.
+ * The message itself is left exactly as it is: it is ordinary chat, sent to everyone and formatted by
+ * Minecraft or whatever chat plugin the server runs. This listener only reads it (MONITOR, never cancels or
+ * changes anything). The chat event runs off the server thread; the real work is scheduled onto it.
  */
 public final class ChatListener implements Listener {
 
@@ -26,13 +27,12 @@ public final class ChatListener implements Listener {
         this.conversations = conversations;
     }
 
-    // HIGH + ignoreCancelled: a mute or chat-filter plugin that cancelled the message keeps the last word
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    // MONITOR + ignoreCancelled: a message that a mute or chat-filter plugin stopped is not heard by SCP-079 either
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
         if (!conversations.isTalking(player.getUniqueId())) return;
         String text = PlainTextComponentSerializer.plainText().serialize(event.message());
-        if (plugin.settings().chat().isPrivate()) event.setCancelled(true);
         Bukkit.getScheduler().runTask(plugin, () -> conversations.onChat(player, text));
     }
 

@@ -19,9 +19,10 @@ class ChatFormatTest {
         YamlConfiguration config = YamlConfiguration.loadConfiguration(
             new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8));
         var plain = PlainTextComponentSerializer.plainText();
-        assertEquals("<SCP-079> Hello <red>human", plain.serialize(Messages.format(config.getString("chat.format"),
-            Placeholder.unparsed("message", "Hello <red>human"))));
-        assertEquals("<Steve → SCP-079> hi", plain.serialize(Messages.format(config.getString("chat.echo-format"),
-            Placeholder.unparsed("player", "Steve"), Placeholder.unparsed("message", "hi"))));
+        var line = Messages.format(config.getString("chat.reply-format"), Placeholder.unparsed("message", "Hello <red>human"));
+        assertEquals("<SCP-079> Hello <red>human", plain.serialize(line));
+        // plain, like a player's chat line: no colour anywhere
+        assertEquals(null, line.color());
+        assertEquals(true, line.children().stream().allMatch(child -> child.color() == null));
     }
 }

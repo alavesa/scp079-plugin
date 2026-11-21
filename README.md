@@ -21,12 +21,32 @@ The model is a Blockbench file (`.bbmodel`) you can replace with your own.
 - [Troubleshooting](#troubleshooting)
 - [What was verified, and what was not](#what-was-verified-and-what-was-not)
 
+## Changes in 1.2.0
+
+- **The model is always the real `.bbmodel`**, from the resource pack, shown with an item display. The
+  vanilla-block stand-in (`LIVE_CUBES`) is gone. A `config.yml` from 1.0.0 still said
+  `render-mode: LIVE_CUBES`, which 1.1.x kept using: that is the most likely reason the model looked wrong.
+  The console now says so once.
+- **The starter model's screen faced backwards** (dark plastic in front, 079's face at the back). Fixed. An
+  unedited `models/scp079.bbmodel` from 1.1.x is replaced automatically; an edited one is left alone.
+- **Captions no longer pause between parts.** A long reply scrolls up line by line while it is typed, in
+  one box.
+- **"Come closer" removed from the persona.** The sentence that told Gemini to say it is replaced in
+  `system_prompt.txt` (only when the file still has it word for word).
+- **Chat is ordinary chat.** What players type near SCP-079 is sent to everyone and formatted by
+  Minecraft or your chat plugin like any other message; SCP-079 only listens. SCP-079's answer in chat
+  is a plain `<SCP-079> text` line (`chat.reply-format`) sent to everyone online (`chat.global`); captions
+  stay with the players near the unit.
+  `chat.private`, `chat.format` and `chat.echo-format` are no longer read.
+- **`/scp079 announce <text>`**: SCP-079 speaks over the Intercom plugin's banner (needs Intercom 1.1.0),
+  in green, signed "- SCP-079", with a corrupted chime. Settings under `intercom:` in `config.yml`.
+
 ## Changes in 1.1.0
 
 - **Captions.** SCP-079's words are drawn in a semi-transparent black box just above the hotbar, where
   the action bar is, and typed out letter by letter. Done with the resource pack's `core/text` shader.
 - **The model is the real `.bbmodel`**, with its own textures, by default (`visual.render-mode: PACK_MODEL`).
-  The vanilla-block stand-in is still available as `LIVE_CUBES`.
+  (1.2.0: always; the vanilla-block stand-in was removed.)
 - **The plugin now sends its resource pack itself** (on the Minecraft port, nothing to set up).
 - **"Come closer" is gone.** Nothing happens outside the talk radius; players must be within 5 blocks
   to speak to SCP-079.
@@ -121,9 +141,8 @@ them (`units.punch-to-remove`; the item drops when `units.drop-item` is on).
 | Further away than 5 blocks | Nothing. Chat is ordinary chat. |
 | Right-clicking the unit | Nothing. |
 
-By default the exchange is private: the player's messages are not broadcast (they see their own line
-echoed in chat) and only they get the answer. Set `chat.private: false` to keep messages in public
-chat and show the answer to everyone within the talk radius.
+A player's message is ordinary public chat; nothing about it is changed or hidden. Everyone within the
+talk radius gets SCP-079's answer as a caption; its chat line goes to everyone online (`chat.global: true`).
 
 SCP-079's persona is `plugins/SCP079/system_prompt.txt`. Edit it and run `/scp079 reload`. Whatever
 the prompt says, replies are cut to 3 sentences (`conversation.max-sentences`) and stripped of
@@ -132,7 +151,8 @@ markdown, quotes and "SCP-079:" prefixes.
 ## Captions
 
 A caption is a black, semi-transparent box just above the hotbar with up to three lines of 40
-characters. The text is typed out letter by letter; longer replies continue in a second box. While
+characters. The text is typed out letter by letter; a longer reply scrolls up line by line in the same
+box while it is typed. While
 the answer is on its way, dots cycle in a small box.
 
 | Setting (`captions.` in config.yml) | Default | |
@@ -183,13 +203,8 @@ box UV), groups (pivot and rotation, nested), textures, texture animation frames
 with a warning in `/scp079 pack info`: meshes, animations, locators and other non-cube elements.
 Models larger than 3 blocks are stored smaller and scaled back up, with no visible difference.
 
-`visual.render-mode`:
-
-| | `PACK_MODEL` (default) | `LIVE_CUBES` |
-|---|---|---|
-| What players see | The exact model with its own textures, as one item display. | The model's shape rebuilt from vanilla blocks: one block display per cube, each the block closest to the cube's average texture colour. A stand-in. |
-| Without the resource pack | **A missing-model cube (purple and black)** | Looks the same |
-| Entities per unit | 2 | One per cube, plus the hitbox |
+Units are always drawn from the resource pack: the model with its own textures, as one item display
+plus an invisible hitbox. A player without the pack sees a missing-model cube (purple and black).
 
 `visual.scale`, `visual.rotation-offset` (use 180 when your model's front is not north) and the other
 `visual.*` settings are explained in `config.yml`.
@@ -282,14 +297,21 @@ with the cause, and the console logs it.
 | Console: "could not load the resource pack (FAILED_DOWNLOAD)" | The download address does not reach the server: behind a proxy use `delivery: http` or `url`; set `public-host`. If the address answers 404, another plugin answers downloads on the Minecraft port (Firearms before 0.33.1 did). |
 | Several resource reloads on join, then chat instead of captions | Radio older than 0.2.3 or IdCards older than 1.0.3. Update them. |
 | Another plugin's HUD (radio popup, ID card...) is gone | SCP079's pack is on top without that plugin's shader hooks: check that the plugin's pack zip is where `resourcepack.text-shader-sources` says, then `/scp079 reload`. |
-| Units are purple-and-black cubes | The player has no pack. Fix the pack delivery, or use `visual.render-mode: LIVE_CUBES`. |
+| Units are purple-and-black cubes | The player has no pack. Fix the pack delivery. |
 | A unit is invisible | No `.bbmodel` could be loaded - `/scp079 pack info` says why. |
 | The model faces the wrong way | Its front is not Blockbench north. Set `visual.rotation-offset: 180` (or 90 / -90). |
-| My chat is not public near SCP-079 | Intended: `chat.private: true`. Step out of the talk radius, or set it to `false`. |
 | Model edits do not show | Run `/scp079 reload`, or turn on `models.watch-folder`. |
 | An update did nothing | The old jar is still in `plugins/`. Delete it. |
 
 ## What was verified, and what was not
+
+1.2.0, on a real 26.3 client (2026-11-21): the unit drawn from the pack with the screen facing front;
+an old `LIVE_CUBES` config drawn from the pack anyway; a long reply (from a local stand-in for Gemini)
+scrolling in one caption; `/scp079 announce` shown on the Intercom banner in green with the
+SCP-079 line. The prompt on disk was rewritten. **Not checked:** typing in chat (the test client
+cannot), how the corrupted chime sounds, a real Gemini call.
+
+Earlier versions:
 
 Seen on a real Minecraft 26.3 client (2026-11-20, driven from the server console, no keyboard):
 
@@ -313,7 +335,7 @@ Not checked - these need a person, or a real key:
 
 - **Typing in chat to SCP-079** and getting the answer (the test client cannot type).
 - Placing with the item, punching to remove, right-click doing nothing.
-- The chat fallback for a player who declined the pack; public mode (`chat.private: false`).
+- The chat fallback for a player who declined the pack.
 - **A real Gemini call.** The request format follows Google's API reference as read on 2026-11-19;
   `/scp079 test` with a real key is the proof. `gemini.endpoint` is configurable.
 - Captions together with SuperbVehicles' and CCTV's HUDs, and with the server's own (Lab) pack.

@@ -17,6 +17,7 @@ import java.util.UUID;
 
 /**
  * SCP-079's captions: a box of text just above the hotbar, typed out letter by letter as if it were speaking.
+ * A reply longer than the box scrolls up line by line while it is typed - one caption, without pauses.
  * <p>
  * A caption is a boss bar per player. Its name is the whole caption, laid out by {@link CaptionText}; the
  * pack's text shader moves it from the top of the screen to above the hotbar and the pack blanks the blue bar
@@ -33,15 +34,14 @@ public final class CaptionService {
 
     private static final class State {
         BossBar bar;
-        List<List<String>> pages = List.of();
-        int page, pageLength;
-        /** Characters of the current page shown so far (fractional: characters-per-tick need not be whole). */
+        /** The whole reply, wrapped; empty = nothing is being said. */
+        List<String> lines = List.of();
+        int length;
+        /** Characters of the reply shown so far (fractional: characters-per-tick need not be whole). */
         double revealed;
         int holdLeft;
         boolean thinking;
         int thinkingTicks;
-        Sound sound;
-        double x, y, z;
     }
 
     private final Scp079Plugin plugin;
@@ -53,7 +53,7 @@ public final class CaptionService {
     /** Shows cycling dots until {@link #say} or {@link #clear} is called. */
     public void thinking(Player player) {
         State state = states.computeIfAbsent(player.getUniqueId(), id -> new State());
-        if (!state.pages.isEmpty()) return; // still saying something: let it finish
+        if (!state.lines.isEmpty()) return; // still saying something: let it finish
         state.thinking = true;
         state.thinkingTicks = 0;
         show(player, state, CaptionText.page(List.of("..."), 1, CaptionText.PALETTE_DIM));
@@ -61,21 +61,26 @@ public final class CaptionService {
     }
 
     /**
-     * Types {@code text} out, page by page.
+     * Types {@code text} out.
      *
-     * @param sound played at the start of every page at the given position; may be null
+     * @param sound played when it starts, at the given position; may be null
      */
     public void say(Player player, String text, Sound sound, double x, double y, double z) {
-        List<List<String>> pages = CaptionText.pages(text);
-        if (pages.isEmpty()) return;
+        List<String> lines = CaptionText.wrap(text);
+        if (lines.isEmpty()) return;
         State state = states.computeIfAbsent(player.getUniqueId(), id -> new State());
         state.thinking = false;
-        state.pages = pages;
-        state.sound = sound;
-        state.x = x;
-        state.y = y;
-        state.z = z;
-        startPage(player, state, 0);
+        state.lines = lines;
+        state.revealed = 0;
+        state.length = 0;
+        for (String line : lines) state.length += line.length();
+        Settings.Captions cfg = plugin.settings().captions();
+        // the hold starts when everything has been typed; it is measured on what is then in the box
+        int visible = 0;
+        for (int i = Math.max(0, lines.size() - CaptionText.MAX_LINES); i < lines.size(); i++) visible += lines.get(i).length();
+        state.holdLeft = (int) Math.min(cfg.holdMaxTicks(), cfg.holdBaseTicks() + visible * cfg.holdTicksPerChar());
+        if (sound != null) player.playSound(sound, x, y, z);
+        show(player, state, CaptionText.scrolling(lines, 0, CaptionText.PALETTE_TEXT));
         ensureTask();
     }
 
@@ -93,17 +98,6 @@ public final class CaptionService {
         states.clear();
         if (task != null) task.cancel();
         task = null;
-    }
-
-    private void startPage(Player player, State state, int page) {
-        state.page = page;
-        state.revealed = 0;
-        state.pageLength = 0;
-        for (String line : state.pages.get(page)) state.pageLength += line.length();
-        Settings.Captions cfg = plugin.settings().captions();
-        state.holdLeft = (int) Math.min(cfg.holdMaxTicks(), cfg.holdBaseTicks() + state.pageLength * cfg.holdTicksPerChar());
-        if (state.sound != null) player.playSound(state.sound, state.x, state.y, state.z);
-        show(player, state, CaptionText.page(state.pages.get(page), 0, CaptionText.PALETTE_TEXT));
     }
 
     private void show(Player player, State state, Component name) {
@@ -135,21 +129,17 @@ public final class CaptionService {
                 show(player, state, CaptionText.page(List.of("..."), dots.length(), CaptionText.PALETTE_DIM));
                 continue;
             }
-            if (state.pages.isEmpty()) {
+            if (state.lines.isEmpty()) {
                 if (state.bar != null) player.hideBossBar(state.bar);
                 it.remove();
                 continue;
             }
-            if (state.revealed < state.pageLength) {
-                state.revealed = Math.min(state.pageLength, state.revealed + speed);
-                show(player, state, CaptionText.page(state.pages.get(state.page), (int) state.revealed, CaptionText.PALETTE_TEXT));
+            if (state.revealed < state.length) {
+                state.revealed = Math.min(state.length, state.revealed + speed);
+                show(player, state, CaptionText.scrolling(state.lines, (int) state.revealed, CaptionText.PALETTE_TEXT));
             } else if (--state.holdLeft <= 0) {
-                if (state.page + 1 < state.pages.size()) {
-                    startPage(player, state, state.page + 1);
-                } else {
-                    if (state.bar != null) player.hideBossBar(state.bar);
-                    it.remove();
-                }
+                if (state.bar != null) player.hideBossBar(state.bar);
+                it.remove();
             }
         }
         if (states.isEmpty() && task != null) {

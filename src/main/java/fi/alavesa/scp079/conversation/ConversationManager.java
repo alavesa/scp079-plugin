@@ -173,10 +173,6 @@ public final class ConversationManager {
         if (message.length() > max) message = message.substring(0, max);
 
         long now = System.currentTimeMillis();
-        if (settings.chat().isPrivate() && !settings.chat().echoFormat().isBlank()) {
-            player.sendMessage(Messages.format(settings.chat().echoFormat(),
-                Placeholder.unparsed("player", player.getName()), Placeholder.unparsed("message", message)));
-        }
         if (now - state.lastRequest < settings.gemini().playerCooldownMillis()) {
             speak(player, unit, plain(plugin.messages().component("error.cooldown")), false);
             return;
@@ -279,9 +275,9 @@ public final class ConversationManager {
     }
 
     /**
-     * SCP-079 says something. In private mode only {@code player} hears it; otherwise everyone within the
-     * talk radius of the unit does. Each listener gets it as a caption above the hotbar when their client
-     * has the pack, and in chat according to captions.in-chat.
+     * SCP-079 says something. Everyone within the talk radius of the unit (and {@code player} in any case) gets
+     * it as a caption above the hotbar when their client has the pack, and in chat according to
+     * captions.in-chat. With chat.global, everyone else online gets the chat line too, like any chat message.
      *
      * @param line   plain text; empty = nothing (a message blanked out in messages.yml)
      * @param typed  for chat only: wait the typing delay first (captions type themselves out)
@@ -296,7 +292,7 @@ public final class ConversationManager {
         Sound sound = chat.sound() == null ? null : Sound.sound(chat.sound(), Sound.Source.MASTER, chat.soundVolume(), chat.soundPitch());
         List<Player> audience = new ArrayList<>();
         World world = unit.world();
-        if (chat.isPrivate() || world == null) {
+        if (world == null) {
             audience.add(player);
         } else {
             double radius = settings.proximity().talkRadius() + HYSTERESIS;
@@ -318,6 +314,14 @@ public final class ConversationManager {
                 if (delay <= 0) say.run();
                 else Bukkit.getScheduler().runTaskLater(plugin, say, delay);
             }
+        }
+        if (chat.global()) {
+            Runnable sayToEveryoneElse = () -> {
+                for (Player other : Bukkit.getOnlinePlayers()) if (!audience.contains(other)) other.sendMessage(chatLine);
+                Bukkit.getConsoleSender().sendMessage(chatLine);
+            };
+            if (delay <= 0) sayToEveryoneElse.run();
+            else Bukkit.getScheduler().runTaskLater(plugin, sayToEveryoneElse, delay);
         }
     }
 

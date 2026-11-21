@@ -37,8 +37,9 @@ class ModelPipelineTest {
         assertFalse(plan.parts().isEmpty());
         CubePlanner.Part screen = plan.parts().stream().filter(p -> p.name().equals("screen")).findFirst().orElseThrow();
         assertTrue(screen.emissive());
-        // the screen texture is dark green: it must not come out as a grey or beige block
-        assertTrue(screen.block().contains("green") || screen.block().contains("emerald") || screen.block().contains("lime"), screen.block());
+        // the screen's FRONT (north, the side that faces the player) shows the screen region of the atlas, 0,16 - 16,28
+        BbModel.Cube cube = model.cubes.stream().filter(c -> c.name.equals("screen")).findFirst().orElseThrow();
+        assertArrayEquals(new double[] {0, 16, 16, 28}, cube.faces.get("north").uv(), 1e-9);
     }
 
     @Test

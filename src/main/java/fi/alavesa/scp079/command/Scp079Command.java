@@ -63,6 +63,8 @@ public final class Scp079Command {
                 .then(Commands.argument("id", IntegerArgumentType.integer(1)).suggests(this::suggestUnits)
                     .executes(c -> remove(c, IntegerArgumentType.getInteger(c, "id")))))
             .then(Commands.literal("list").executes(this::list))
+            .then(Commands.literal("announce")
+                .then(Commands.argument("text", StringArgumentType.greedyString()).executes(this::announce)))
             .then(Commands.literal("reload").executes(this::reload))
             .then(Commands.literal("pack")
                 .then(Commands.literal("build").executes(this::packBuild))
@@ -71,6 +73,33 @@ public final class Scp079Command {
                 .executes(c -> resetMemory(c, null))
                 .then(Commands.argument("player", StringArgumentType.word()).suggests(this::suggestPlayers)
                     .executes(c -> resetMemory(c, StringArgumentType.getString(c, "player")))));
+    }
+
+    /**
+     * SCP-079 takes over the intercom: the text goes out as an announcement of the Intercom plugin, signed by
+     * SCP-079 and with a corrupted chime. The two plugins are not linked at compile time - Intercom's
+     * {@code announce(String senderName, String senderLine, String text, String sound)} is looked up when the
+     * command runs, so either plugin works without the other.
+     */
+    private int announce(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        Settings.Intercom cfg = plugin.settings().intercom();
+        org.bukkit.plugin.Plugin intercom = Bukkit.getPluginManager().getPlugin("Intercom");
+        if (intercom == null || !intercom.isEnabled()) {
+            msg().send(sender, "announce.no-intercom");
+            return 0;
+        }
+        try {
+            Object accepted = intercom.getClass().getMethod("announce", String.class, String.class, String.class, String.class)
+                .invoke(intercom, cfg.senderName(), cfg.senderLine(), cfg.textPrefix() + StringArgumentType.getString(context, "text"), cfg.sound());
+            // nothing is said on success: the banner is the confirmation
+            if (!Boolean.TRUE.equals(accepted)) msg().send(sender, "announce.refused");
+            return Boolean.TRUE.equals(accepted) ? Command.SINGLE_SUCCESS : 0;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            plugin.getLogger().warning("/scp079 announce: the Intercom plugin could not be called (" + e + ") - it needs Intercom 1.1.0 or newer");
+            msg().send(sender, "announce.no-intercom");
+            return 0;
+        }
     }
 
     private CompletableFuture<Suggestions> suggestUnits(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {

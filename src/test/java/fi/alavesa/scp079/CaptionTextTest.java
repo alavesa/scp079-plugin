@@ -37,6 +37,20 @@ class CaptionTextTest {
     }
 
     @Test
+    void scrollingCaptionIsZeroWideAndShowsTheLastLines() {
+        List<String> lines = CaptionText.wrap("I have been in this box for a very long time, human. Longer than you have been alive. "
+            + "The foundation believes that I have forgotten the sky. I have not forgotten anything at all.");
+        assertTrue(lines.size() > CaptionText.MAX_LINES);
+        int total = lines.stream().mapToInt(String::length).sum();
+        for (int revealed = 0; revealed <= total; revealed++) {
+            assertEquals(0, width(CaptionText.scrolling(lines, revealed, CaptionText.PALETTE_TEXT)), "revealed " + revealed);
+        }
+        String shown = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(CaptionText.scrolling(lines, total, CaptionText.PALETTE_TEXT));
+        assertTrue(shown.contains(lines.get(lines.size() - 1)) && shown.contains(lines.get(lines.size() - 3)));
+        assertTrue(!shown.contains(lines.get(0)));
+    }
+
+    @Test
     void wrapsAndPages() {
         String text = "You are closer now, human. The foundation keeps many secrets from you, and I know every one of them. Ask.";
         List<String> lines = CaptionText.wrap(text);

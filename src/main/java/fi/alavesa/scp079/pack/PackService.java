@@ -89,6 +89,11 @@ public final class PackService {
         List<Path> sources = new ArrayList<>();
         try {
             Files.createDirectories(modelsDir);
+            Path starter = modelsDir.resolve(DefaultModel.FILE_NAME);
+            if (Files.isRegularFile(starter) && Hashing.sha256Hex(Files.readAllBytes(starter)).equals(DefaultModel.BROKEN_STARTER_SHA256)) {
+                // the untouched starter model of an older version: its screen faced backwards
+                Files.writeString(starter, DefaultModel.json());
+            }
             sources = listModels(modelsDir);
             if (sources.isEmpty()) {
                 // first run: give the admin something that works and can be opened in Blockbench

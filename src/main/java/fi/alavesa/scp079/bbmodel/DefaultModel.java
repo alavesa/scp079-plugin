@@ -21,6 +21,12 @@ public final class DefaultModel {
 
     public static final String FILE_NAME = "scp079.bbmodel";
 
+    /**
+     * SHA-256 of the starter model written by 1.1.1 and older, whose screen showed the dark plastic at the front
+     * and 079's face at the back. A file with exactly this content was never edited, so it is replaced.
+     */
+    public static final String BROKEN_STARTER_SHA256 = "b84bb2f925b2a090dfbb54c9d71685eff3a656d3145c934e4c2b47051dfe4d5e";
+
     /** Texture atlas regions, {@code [u1, v1, u2, v2]} in a 32 x 32 UV space. */
     private static final double[] CASE = {0, 0, 16, 16}, DARK = {16, 0, 32, 16}, SCREEN = {0, 16, 16, 28},
         LED = {16, 16, 20, 20}, KEYS = {16, 20, 32, 28};
@@ -36,7 +42,7 @@ public final class DefaultModel {
         computer.add(m.cube("base", -7, 0, -6, 7, 4, 6, CASE, CASE, 0));
         computer.add(m.cube("monitor", -6, 4, -5, 6, 14, 5, CASE, CASE, 0));
         computer.add(m.cube("bezel", -5, 5, -5.4, 5, 13, -5, DARK, DARK, 0));
-        computer.add(m.cube("screen", -4, 6, -5.6, 4, 12, -5.4, SCREEN, DARK, 15));
+        computer.add(m.cube("screen", -4, 6, -5.6, 4, 12, -5.4, DARK, SCREEN, 15));
         computer.add(m.cube("led_glow", 4.5, 1.5, -6.2, 5.5, 2.5, -6, LED, LED, 15));
         computer.add(m.cube("vent", -5, 14, -3, 5, 14.5, 3, DARK, DARK, 0));
 

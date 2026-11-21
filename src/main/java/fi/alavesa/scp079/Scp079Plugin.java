@@ -49,6 +49,9 @@ import java.util.function.Consumer;
  */
 public final class Scp079Plugin extends JavaPlugin {
 
+    private static final String OLD_COME_CLOSER = "You tell players to 'come closer' when you want to speak with them (you start speaking if they walk a little closer). ";
+    private static final String NEW_COME_CLOSER = "You do not ask players to come closer: if you can hear them, they are close enough. ";
+
     public static final String PERMISSION_ADMIN = "scp079.admin", PERMISSION_TALK = "scp079.talk";
 
     /**
@@ -148,7 +151,15 @@ public final class Scp079Plugin extends JavaPlugin {
         Path promptFile = getDataFolder().toPath().resolve("system_prompt.txt");
         if (!Files.exists(promptFile)) saveResource("system_prompt.txt", false);
         try {
-            systemPrompt = Files.readString(promptFile).strip();
+            String prompt = Files.readString(promptFile);
+            // The prompt of 1.1 and older told the model to say "come closer"; players heard it all the time. The
+            // file on disk is the server's own, so only that one sentence is replaced, and only when it is unchanged.
+            if (prompt.contains(OLD_COME_CLOSER)) {
+                prompt = prompt.replace(OLD_COME_CLOSER, NEW_COME_CLOSER);
+                Files.writeString(promptFile, prompt);
+                getLogger().info("system_prompt.txt: the sentence that made SCP-079 say 'come closer' was replaced");
+            }
+            systemPrompt = prompt.strip();
         } catch (IOException e) {
             getLogger().warning("system_prompt.txt could not be read (" + e.getMessage() + ") - SCP-079 has no persona until it can");
             systemPrompt = "";

@@ -64,7 +64,8 @@ captions:
   color: "#7DFF99"
   # Typing speed. 1 = 20 characters a second.
   characters-per-tick: 1.0
-  # How long a finished caption stays before it disappears (or the next part follows), in ticks.
+  # A reply longer than the box scrolls up line by line while it is typed (no pause, no second caption).
+  # How long the finished caption stays before it disappears, in ticks.
   hold:
     base-ticks: 40
     ticks-per-character: 1.0
@@ -76,14 +77,14 @@ captions:
   in-chat: FALLBACK
 
 chat:
-  # true  = messages typed near SCP-079 are NOT broadcast; only the player gets the answer.
-  # false = the message stays in public chat, and everyone near the unit gets SCP-079's answer.
-  private: true
+  # What players type near SCP-079 is ordinary chat: it is sent to everyone and formatted by Minecraft or
+  # your chat plugin, exactly like any other message. SCP-079 only listens.
   # How a line of SCP-079 looks when it is written into chat (see captions.in-chat). <message> is the
-  # text. MiniMessage format; a literal "<" is written "\<".
-  format: '<green>\<SCP-079></green> <#7CFC9A><message>'
-  # In private mode the player's own line is echoed back like this (empty = no echo).
-  echo-format: '<dark_gray>\<</dark_gray><gray><player> → SCP-079</gray><dark_gray>></dark_gray> <gray><message>'
+  # text. MiniMessage format; a literal "<" is written "\<". The default looks like a player's chat line.
+  reply-format: '\<SCP-079> <message>'
+  # true = SCP-079's chat line goes to everyone online, like a player's chat message. Players near the unit
+  # get it according to captions.in-chat as well. false = only players near the unit.
+  global: true
   # Chat only: a short pause before the reply appears, as if it were being typed.
   typing-delay:
     enabled: true
@@ -113,12 +114,8 @@ units:
     use-pack-model: true
 
 visual:
-  # How placed units are drawn. The model is ALWAYS the active .bbmodel - there is no other design.
-  #   PACK_MODEL  the exact .bbmodel with its own textures, from the generated resource pack. (default)
-  #               Players WITHOUT the pack see a missing-model cube.
-  #   LIVE_CUBES  no pack needed: the model's shape rebuilt from vanilla blocks, one block display
-  #               per cube, each coloured with the closest vanilla block. A stand-in, not the real look.
-  render-mode: PACK_MODEL
+  # Placed units are the active .bbmodel itself, with its own textures: converted into the generated resource
+  # pack and shown with one item display. Players WITHOUT the pack see a missing-model cube.
   # Size multiplier. 1.0 = Blockbench size (16 px = 1 block).
   scale: 1.0
   # true = a new unit's front faces the player who placed it; false = it faces south (yaw 0).
@@ -131,37 +128,6 @@ visual:
   view-range: 1.0
   # Light level the model is drawn with, 0-15, or -1 for the light of the place it stands in.
   brightness: -1
-  # Light level of glowing cubes (see emissive-keywords), so the screen is readable in dark rooms.
-  emissive-brightness: 15
-  # LIVE_CUBES: join neighbouring cubes of the same block into one display where the result is a box.
-  merge-cubes: true
-  # LIVE_CUBES: never spawn more displays than this per unit (the smallest cubes are dropped first)...
-  max-cubes: 256
-  # ...and warn in the log and in /scp079 pack info above this.
-  warn-cubes: 96
-  # LIVE_CUBES: a cube glows when its name (or one of its groups) contains one of these words, or when
-  # the cube has "light emission" set in Blockbench.
-  emissive-keywords: [screen, glow, light, led, emissive]
-  # LIVE_CUBES: force a block for a cube. Key = cube name, group name or texture name (without .png),
-  # value = block. Checked before any colour matching.
-  block-overrides: {}
-  #  screen: lime_stained_glass
-  #  base: iron_block
-  palette:
-    # Shown when a cube's texture cannot be read.
-    default-block: gray_concrete
-    # true = start from the built-in palette (all concrete, terracotta and wool colours plus a few
-    # neutral blocks; stained glass for see-through cubes; sea lantern, froglights, glowstone, emerald
-    # block... for glowing cubes) and add the entries below. false = ONLY the entries below.
-    use-defaults: true
-    # block: "#rrggbb" (the colour the block stands for). A cube gets the block with the closest colour.
-    solid: {}
-    #  smooth_basalt: "#48484E"
-    glass: {}
-    emissive: {}
-    # A cube whose texture is less opaque than this on average becomes glass / is left out.
-    glass-below-opacity: 0.6
-    invisible-below-opacity: 0.05
 
 models:
   # File in plugins/SCP079/models/ that units show ("scp079.bbmodel"; the extension may be left out).
@@ -170,6 +136,17 @@ models:
   # Watch the models folder and rebuild the pack + refresh units automatically when a file changes.
   watch-folder: false
   watch-debounce-ms: 1500
+
+# /scp079 announce <text>: SCP-079 speaks over the Intercom plugin's banner (needs Intercom 1.1.0+).
+intercom:
+  # Name in the log and in chat.
+  sender-name: "SCP-079"
+  # The line under the message on the banner. & colour codes. Empty = no line.
+  sender-line: "&8- &aSCP-079"
+  # Put in front of the text: the colour (and style) of SCP-079's announcements.
+  text-prefix: "&a"
+  # Played instead of the intercom's chime. intercom:chime_corrupt is in the Intercom pack.
+  sound: "intercom:chime_corrupt"
 
 # The pack carries the model (PACK_MODEL) and the captions. It is generated from the models folder on
 # every start and reload: plugins/SCP079/SCP079-pack.zip and plugins/SCP079/resourcepack/.

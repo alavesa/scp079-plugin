@@ -34,7 +34,7 @@ status:
   captions-off: "<gray> Captions: <red>off - SCP-079 speaks in chat</red> <dark_gray>(text shader: <shader>)"
   pack-generated: "<gray> Resource pack: <white>generated</white> <dark_gray>(<files> files, sha1 <sha1>)"
   pack-missing: "<gray> Resource pack: <red>not generated</red> <dark_gray>(see the console, or /scp079 pack build)"
-  bbmodel: "<gray> Active BBModel: <white><file></white> <dark_gray>(<cubes> cubes, <displays> block displays in LIVE_CUBES)"
+  bbmodel: "<gray> Active BBModel: <white><file></white> <dark_gray>(<cubes> cubes)"
   bbmodel-missing: "<red> No usable .bbmodel in plugins/SCP079/models/ - units are invisible. See /scp079 pack info."
 
 give:
@@ -53,6 +53,10 @@ list:
   header: "<prefix> <gray><count> unit(s):"
   entry: "<gray> #<white><id></white> <dark_gray>-</dark_gray> <world> <white><x> <y> <z>"
   empty: "<prefix> <gray>No units yet. Use /scp079 give or /scp079 spawn."
+
+announce:
+  no-intercom: "<prefix> <red>The Intercom plugin (1.1.0 or newer) is not installed."
+  refused: "<prefix> <red>The intercom did not take that: too long for the banner, or too many announcements waiting."
 
 reload:
   started: "<prefix> <gray>Reloading..."

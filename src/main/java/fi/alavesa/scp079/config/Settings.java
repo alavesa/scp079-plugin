@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  * the plugin never sees a negative radius or an unknown material. Safe to read from any thread.
  */
 public record Settings(Gemini gemini, Conversation conversation, Proximity proximity, Chat chat, Captions captions,
-                       Units units, Visual visual, Models models, Pack pack) {
+                       Units units, Visual visual, Models models, Pack pack, Intercom intercom) {
 
     public static final String NAMESPACE = "scp079";
 
@@ -32,7 +32,7 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
     public record Proximity(int intervalTicks, double talkRadius, long greetingCooldownMillis) { }
 
     /** @param sound null when the sound is switched off or its name is not a valid key */
-    public record Chat(boolean isPrivate, String format, String echoFormat, boolean typingDelay, int typingBaseTicks,
+    public record Chat(String format, boolean global, boolean typingDelay, int typingBaseTicks,
                        double typingTicksPerChar, int typingMaxTicks, Key sound, float soundVolume, float soundPitch) { }
 
     /**
@@ -43,6 +43,15 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
                            double charsPerTick, int holdBaseTicks, double holdTicksPerChar, int holdMaxTicks, InChat inChat) { }
 
     public enum InChat { NEVER, FALLBACK, ALWAYS }
+
+    /**
+     * /scp079 announce, through the Intercom plugin.
+     *
+     * @param senderLine the line under the message on the banner ({@code &} colour codes)
+     * @param textPrefix put in front of the text (colour codes: how SCP-079's announcements look)
+     * @param sound      sound event played instead of the intercom's chime
+     */
+    public record Intercom(String senderName, String senderLine, String textPrefix, String sound) { }
 
     public enum Delivery { AUTO, SAME_PORT, HTTP, URL, NONE }
 
@@ -91,9 +100,10 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             else log.warning("chat.sound.name '" + name + "' is not a valid sound id - no sound is played");
         }
         Chat chat = new Chat(
-            c.getBoolean("chat.private", true),
-            c.getString("chat.format", "<green>\\<SCP-079></green> <message>"),
-            c.getString("chat.echo-format", ""),
+            // chat.private, chat.format and chat.echo-format of 1.1 and older are no longer read: a player's message
+            // is ordinary public chat now, and SCP-079's line has a new key so an old coloured format does not linger
+            c.getString("chat.reply-format", "\\<SCP-079> <message>"),
+            c.getBoolean("chat.global", true),
             c.getBoolean("chat.typing-delay.enabled", true),
             Math.max(0, c.getInt("chat.typing-delay.base-ticks", 10)),
             Math.max(0, c.getDouble("chat.typing-delay.ticks-per-character", 0.25)),
@@ -141,12 +151,11 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             List.copyOf(c.getStringList("units.item.lore")),
             c.getBoolean("units.item.use-pack-model", true));
 
+        // LIVE_CUBES (the model rebuilt from vanilla blocks) is gone: units are always the .bbmodel itself, from the
+        // resource pack, shown with an item display. A config.yml that still asks for it is told once.
         RenderMode mode = RenderMode.PACK_MODEL;
-        String rawMode = c.getString("visual.render-mode", "PACK_MODEL").trim().toUpperCase(Locale.ROOT);
-        try {
-            mode = RenderMode.valueOf(rawMode);
-        } catch (IllegalArgumentException e) {
-            log.warning("visual.render-mode '" + rawMode + "' is not PACK_MODEL or LIVE_CUBES - using PACK_MODEL");
+        if (c.getString("visual.render-mode", "PACK_MODEL").trim().equalsIgnoreCase("LIVE_CUBES")) {
+            log.warning("visual.render-mode LIVE_CUBES is no longer supported - units are drawn from the resource pack (PACK_MODEL). Remove the line from config.yml to silence this.");
         }
         Visual visual = new Visual(
             mode,
@@ -193,7 +202,13 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             Math.max(0, c.getInt("resourcepack.send-delay-ticks", 80)),
             shaderZips);
 
-        return new Settings(gemini, conversation, proximity, chat, captions, units, visual, models, pack);
+        Intercom intercom = new Intercom(
+            c.getString("intercom.sender-name", "SCP-079"),
+            c.getString("intercom.sender-line", "&8- &aSCP-079"),
+            c.getString("intercom.text-prefix", "&a"),
+            c.getString("intercom.sound", "intercom:chime_corrupt").trim());
+
+        return new Settings(gemini, conversation, proximity, chat, captions, units, visual, models, pack, intercom);
     }
 
     private static Palette palette(FileConfiguration c, Logger log) {
