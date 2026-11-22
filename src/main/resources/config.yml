@@ -71,9 +71,11 @@ captions:
     ticks-per-character: 1.0
     max-ticks: 160
   # Also write what SCP-079 says into chat?
-  #   FALLBACK  only for players who cannot see captions (no pack, declined, download failed)
-  #   ALWAYS    for everybody
-  #   NEVER     for nobody (players without the pack then get nothing)
+  # Captions are sent to EVERY player, also those whose client did not load the resource pack. Without
+  # the pack's font and shader a caption is drawn as placeholder boxes at the top of the screen, so:
+  #   FALLBACK  players whose client did not load the pack also get the line in chat
+  #   ALWAYS    everybody near the unit gets the line in chat too
+  #   NEVER     captions only
   in-chat: FALLBACK
 
 chat:

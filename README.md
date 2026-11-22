@@ -21,6 +21,14 @@ The model is a Blockbench file (`.bbmodel`) you can replace with your own.
 - [Troubleshooting](#troubleshooting)
 - [What was verified, and what was not](#what-was-verified-and-what-was-not)
 
+## Changes in 1.2.1
+
+- **Captions are sent to every player, with or without the resource pack.** Before, a player whose client
+  had not reported the pack as loaded got no caption at all, only chat. What a client without the pack
+  draws is not the caption: it has neither the caption font nor the shader, so it shows the boss bar's
+  name as placeholder boxes at the top of the screen. Those players therefore still get the line in
+  chat as well (`captions.in-chat: FALLBACK`; `NEVER` switches that off).
+
 ## Changes in 1.2.0
 
 - **The model is always the real `.bbmodel`**, from the resource pack, shown with an item display. The
@@ -164,13 +172,14 @@ the answer is on its way, dots cycle in a small box.
 | `color` | `#7DFF99` | Text colour. |
 | `characters-per-tick` | `1.0` | Typing speed (1 = 20 characters a second). |
 | `hold.*` | | How long a finished caption stays. |
-| `in-chat` | `FALLBACK` | Also write the line into chat: `FALLBACK` only for players without the pack, `ALWAYS`, `NEVER`. |
+| `in-chat` | `FALLBACK` | Also write the line into chat: `FALLBACK` for players whose client did not load the pack, `ALWAYS`, `NEVER`. |
 
 Good to know:
 
 - **The caption font has capitals only** - a terminal font. Lower case is shown as upper case.
-- Captions need the resource pack. A player who declined it, or whose download failed, reads
-  SCP-079 in chat instead (`in-chat: FALLBACK`).
+- Captions are sent to everyone, but only a client with the resource pack can draw them. A player
+  who declined it, or whose download failed, gets placeholder boxes at the top of the screen and
+  reads SCP-079 in chat (`in-chat: FALLBACK`).
 - Changing `scale`, `bottom-offset`, `background-opacity` or `color` changes the pack; `/scp079 reload`
   re-sends it to everyone online.
 - The team asked for "post effects and core/text shaders". Captions are drawn by the `core/text`
@@ -335,7 +344,7 @@ Not checked - these need a person, or a real key:
 
 - **Typing in chat to SCP-079** and getting the answer (the test client cannot type).
 - Placing with the item, punching to remove, right-click doing nothing.
-- The chat fallback for a player who declined the pack.
+- What a player without the pack sees (1.2.1: caption sent anyway, plus the chat line). Not looked at on a client.
 - **A real Gemini call.** The request format follows Google's API reference as read on 2026-11-19;
   `/scp079 test` with a real key is the proof. `gemini.endpoint` is configurable.
 - Captions together with SuperbVehicles' and CCTV's HUDs, and with the server's own (Lab) pack.

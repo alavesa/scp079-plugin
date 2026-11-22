@@ -37,7 +37,7 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
 
     /**
      * @param colorRgb caption text colour, {@code 0xRRGGBB}
-     * @param inChat   NEVER, FALLBACK (only for players who cannot see captions) or ALWAYS
+     * @param inChat   NEVER, FALLBACK (only for players whose client did not load the pack) or ALWAYS
      */
     public record Captions(boolean enabled, double scale, int bottomOffset, double backgroundOpacity, int colorRgb,
                            double charsPerTick, int holdBaseTicks, double holdTicksPerChar, int holdMaxTicks, InChat inChat) { }

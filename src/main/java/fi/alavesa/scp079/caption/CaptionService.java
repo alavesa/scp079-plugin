@@ -21,8 +21,9 @@ import java.util.UUID;
  * <p>
  * A caption is a boss bar per player. Its name is the whole caption, laid out by {@link CaptionText}; the
  * pack's text shader moves it from the top of the screen to above the hotbar and the pack blanks the blue bar
- * graphic. Only players whose client has the pack (see {@link fi.alavesa.scp079.pack.PackDelivery#captionsReady})
- * get captions - without the shader the name would be unreadable glyphs at the top of the screen.
+ * graphic. Every player is sent captions, also those whose client did not load the pack
+ * (see {@link fi.alavesa.scp079.pack.PackDelivery#captionsReady}). Without the pack's font and shader the
+ * name is drawn as placeholder boxes at the top of the screen, so those players also get the chat line.
  * <p>
  * Main thread only. The ticking task runs only while somebody has a caption.
  */

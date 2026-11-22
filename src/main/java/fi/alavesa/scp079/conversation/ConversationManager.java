@@ -198,7 +198,7 @@ public final class ConversationManager {
         }
         UUID playerId = player.getUniqueId();
         int unitId = unit.id();
-        if (captionsFor(player)) plugin.captions().thinking(player);
+        if (captions()) plugin.captions().thinking(player);
         gemini.generate(plugin.systemPrompt(), turns).thenAccept(result -> {
             // HTTP thread: only hand over. When the plugin is being disabled the scheduler refuses tasks.
             if (!plugin.isEnabled()) return;
@@ -270,13 +270,14 @@ public final class ConversationManager {
         return component == null ? "" : PlainTextComponentSerializer.plainText().serialize(component);
     }
 
-    private boolean captionsFor(Player player) {
-        return plugin.settings().captions().enabled() && plugin.delivery().captionsReady(player);
+    /** Captions go to every player, with or without the pack on their client. */
+    private boolean captions() {
+        return plugin.settings().captions().enabled() && plugin.delivery().captionsReady();
     }
 
     /**
      * SCP-079 says something. Everyone within the talk radius of the unit (and {@code player} in any case) gets
-     * it as a caption above the hotbar when their client has the pack, and in chat according to
+     * it as a caption above the hotbar (also players whose client has no pack), and in chat according to
      * captions.in-chat. With chat.global, everyone else online gets the chat line too, like any chat message.
      *
      * @param line   plain text; empty = nothing (a message blanked out in messages.yml)
@@ -302,10 +303,12 @@ public final class ConversationManager {
         Component chatLine = Messages.format(chat.format(), Placeholder.unparsed("message", line));
         int delay = typed && chat.typingDelay() ? (int) Math.min(chat.typingMaxTicks(), chat.typingBaseTicks() + line.length() * chat.typingTicksPerChar()) : 0;
         for (Player listener : audience) {
-            boolean caption = captionsFor(listener);
+            boolean caption = captions();
             if (caption) plugin.captions().say(listener, line, sound, unit.x(), unit.y() + 0.5, unit.z());
             Settings.InChat inChat = settings.captions().inChat();
-            if (inChat == Settings.InChat.ALWAYS || (!caption && inChat == Settings.InChat.FALLBACK)) {
+            // without the pack's font a caption is unreadable boxes: those players need the words in chat
+            boolean readable = caption && plugin.delivery().packLoaded(listener);
+            if (inChat == Settings.InChat.ALWAYS || (!readable && inChat == Settings.InChat.FALLBACK)) {
                 Runnable say = () -> {
                     if (!listener.isOnline()) return;
                     listener.sendMessage(chatLine);
