@@ -2,17 +2,23 @@ package fi.alavesa.scp079.caption;
 
 import fi.alavesa.scp079.Scp079Plugin;
 import fi.alavesa.scp079.config.Settings;
+import fi.alavesa.scp079.voice.Pronouncer;
 import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -43,7 +49,18 @@ public final class CaptionService {
         int holdLeft;
         boolean thinking;
         int thinkingTicks;
+        /** Where SCP-079 speaks from: the caption (and voice) stop when the player is no longer near it. */
+        UUID world;
+        double x, y, z;
+        /** The voice still to be played, and ticks until the next step. */
+        final Deque<Pronouncer.Step> voice = new ArrayDeque<>();
+        int voiceWait;
+        float wordPitch = 1f;
     }
+
+    /** A player this much further away than the talk radius stops seeing (and hearing) the caption. */
+    private static final double RANGE_MARGIN = 1.0;
+    private final Random random = new Random();
 
     private final Scp079Plugin plugin;
     private final Map<UUID, State> states = new HashMap<>();
@@ -71,6 +88,15 @@ public final class CaptionService {
         if (lines.isEmpty()) return;
         State state = states.computeIfAbsent(player.getUniqueId(), id -> new State());
         state.thinking = false;
+        state.world = player.getWorld().getUID();
+        state.x = x;
+        state.y = y;
+        state.z = z;
+        state.voice.clear();
+        state.voiceWait = 0;
+        Settings.Voice voice = plugin.settings().voice();
+        Pronouncer pronouncer = plugin.pronouncer();
+        if (voice.enabled() && pronouncer != null) state.voice.addAll(pronouncer.steps(text));
         state.lines = lines;
         state.revealed = 0;
         state.length = 0;
@@ -85,7 +111,7 @@ public final class CaptionService {
         ensureTask();
     }
 
-    /** Removes the player's caption at once. */
+    /** Removes the player's caption (and stops the voice) at once. */
     public void clear(Player player) {
         State state = states.remove(player.getUniqueId());
         if (state != null && state.bar != null) player.hideBossBar(state.bar);
@@ -115,6 +141,35 @@ public final class CaptionService {
         if (task == null) task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
 
+    private boolean outOfRange(Player player, State state) {
+        if (!player.getWorld().getUID().equals(state.world)) return true;
+        double range = plugin.settings().proximity().talkRadius() + RANGE_MARGIN;
+        Location at = player.getLocation();
+        double dx = at.getX() - state.x, dy = at.getY() - state.y, dz = at.getZ() - state.z;
+        return dx * dx + dy * dy + dz * dz > range * range;
+    }
+
+    /** Plays the next phoneme of the voice when its turn has come. Only this player hears it, from the unit. */
+    private void speakStep(Player player, State state) {
+        if (state.voice.isEmpty()) return;
+        if (state.voiceWait > 0) {
+            state.voiceWait--;
+            return;
+        }
+        Settings.Voice cfg = plugin.settings().voice();
+        Pronouncer.Step step = state.voice.poll();
+        state.voiceWait = step.ticks() - 1;
+        if (step.phoneme() == null) {
+            // a pause: the next word gets its own slightly different pitch
+            state.wordPitch = 1f + (random.nextFloat() * 2 - 1) * cfg.pitchVariation();
+            return;
+        }
+        float pitch = cfg.pitch() * state.wordPitch;
+        if (random.nextDouble() < cfg.glitchChance()) pitch *= random.nextBoolean() ? 0.8f : 1.25f;
+        player.playSound(Sound.sound(Key.key(Settings.NAMESPACE, "voice." + step.phoneme()), Sound.Source.VOICE, cfg.volume(),
+            Math.max(0.5f, Math.min(2f, pitch))), state.x, state.y, state.z);
+    }
+
     private void tick() {
         double speed = plugin.settings().captions().charsPerTick();
         for (Iterator<Map.Entry<UUID, State>> it = states.entrySet().iterator(); it.hasNext(); ) {
@@ -123,6 +178,12 @@ public final class CaptionService {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) { it.remove(); continue; }
 
+            if (state.world != null && outOfRange(player, state)) {
+                // walked away: SCP-079's words are only for the people near it
+                if (state.bar != null) player.hideBossBar(state.bar);
+                it.remove();
+                continue;
+            }
             if (state.thinking) {
                 state.thinkingTicks++;
                 String dots = THINKING.get((state.thinkingTicks / THINKING_STEP_TICKS) % THINKING.size());
@@ -135,10 +196,12 @@ public final class CaptionService {
                 it.remove();
                 continue;
             }
+            speakStep(player, state);
             if (state.revealed < state.length) {
                 state.revealed = Math.min(state.length, state.revealed + speed);
                 show(player, state, CaptionText.scrolling(state.lines, (int) state.revealed, CaptionText.PALETTE_TEXT));
-            } else if (--state.holdLeft <= 0) {
+            } else if (--state.holdLeft <= 0 && state.voice.isEmpty()) {
+                // the text stays up until the voice has finished as well
                 if (state.bar != null) player.hideBossBar(state.bar);
                 it.remove();
             }

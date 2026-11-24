@@ -5,7 +5,7 @@
 # ======================================================================================
 
 # Used by the plugin to update older configs. Do not change.
-config-version: 3
+config-version: 4
 
 gemini:
   # Model id from https://aistudio.google.com/docs/models . A small, fast "Flash-Lite" model is plenty
@@ -57,6 +57,20 @@ proximity:
 # SCP-079's words appear as captions: a semi-transparent black box just above the hotbar (where the
 # action bar is), typed out letter by letter. Captions are drawn by the resource pack's text shader,
 # so they need the pack (see resourcepack below). The caption font is a terminal font: capitals only.
+# SCP-079's voice: a robotic speech synthesiser in the resource pack (one sound per speech sound) that reads
+# every caption aloud while it is typed. Only players near the unit hear it, from the unit. The "Voice/Speech"
+# slider in the client's sound options sets its volume.
+voice:
+  enabled: true
+  # 1.0 = audible up to about 16 blocks away (Minecraft's own attenuation).
+  volume: 1.0
+  # 1.0 = the voice as generated (low and flat); 0.5 - 2.0.
+  pitch: 1.0
+  # Every word gets a slightly different pitch (+- this), so it is not dead flat.
+  pitch-variation: 0.04
+  # Chance per speech sound of a sudden pitch jump: a damaged machine. 0 = never.
+  glitch-chance: 0.03
+
 captions:
   enabled: true
   # 1.0 = one caption pixel is one GUI pixel.
@@ -90,9 +104,9 @@ chat:
   # How a line of SCP-079 looks when it is written into chat (see captions.in-chat). <message> is the
   # text. MiniMessage format; a literal "<" is written "\<". The default looks like a player's chat line.
   reply-format: '\<SCP-079> <message>'
-  # true = SCP-079's chat line goes to everyone online, like a player's chat message. Players near the unit
-  # get it according to captions.in-chat as well. false = only players near the unit.
-  global: true
+  # true = SCP-079's chat line also goes to everyone online, far away too. false (default) = SCP-079's words
+  # only reach players near the unit (captions, voice, and chat according to captions.in-chat).
+  global: false
   # Chat only: a short pause before the reply appears, as if it were being typed.
   typing-delay:
     enabled: true
@@ -193,6 +207,7 @@ resourcepack:
   # caption shader is built on top of the first of these zips that exists (paths relative to
   # plugins/, most complete first) and keeps their HUDs working.
   text-shader-sources:
+    Intercom: Intercom/Intercom-pack.zip
     IdCards: IdCards/idcards-pack.zip
     Radio: Radio/radio-pack.zip
     SuperbVehicles: SuperbVehicles/pack/SuperbVehicles-hud.zip
@@ -203,3 +218,8 @@ resourcepack:
     min: 97
     max: 97
   description: "SCP-079"
+
+# What other plugins can teach SCP-079 (ScpAccess: doors, keycard readers, player sensors). Notes such as
+# "a sensor saw someone" stay in its memory for this many minutes.
+api:
+  note-minutes: 10

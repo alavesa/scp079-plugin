@@ -23,6 +23,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -139,9 +140,13 @@ public final class PackService {
         try {
             byte[] zipBytes = DeterministicZip.write(files, false);
             writeFolder(folder, files);
-            Path tmp = zip.resolveSibling(ZIP_NAME + ".tmp");
-            Files.write(tmp, zipBytes);
-            Files.move(tmp, zip, StandardCopyOption.REPLACE_EXISTING);
+            // Unchanged bytes are not written again: Intercom rebuilds its pack when this file's time changes, and this
+            // plugin rebuilds when Intercom's does - rewriting identical files kept the two rebuilding each other.
+            if (!Files.isRegularFile(zip) || !Arrays.equals(Files.readAllBytes(zip), zipBytes)) {
+                Path tmp = zip.resolveSibling(ZIP_NAME + ".tmp");
+                Files.write(tmp, zipBytes);
+                Files.move(tmp, zip, StandardCopyOption.REPLACE_EXISTING);
+            }
             sha1 = Hashing.sha1Hex(zipBytes);
         } catch (IOException | RuntimeException e) {
             problems.add("The resource pack could not be written: " + e);

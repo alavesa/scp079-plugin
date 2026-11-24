@@ -6,6 +6,7 @@ import fi.alavesa.scp079.config.Settings;
 import fi.alavesa.scp079.gemini.GeminiClient;
 import fi.alavesa.scp079.gemini.GeminiResult;
 import fi.alavesa.scp079.gemini.ReplySanitizer;
+import fi.alavesa.scp079.gemini.ToolRunner;
 import fi.alavesa.scp079.gemini.Turn;
 import fi.alavesa.scp079.unit.Unit;
 import net.kyori.adventure.sound.Sound;
@@ -24,6 +25,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -198,7 +200,22 @@ public final class ConversationManager {
         UUID playerId = player.getUniqueId();
         int unitId = unit.id();
         if (captions()) plugin.captions().thinking(player);
-        gemini.generate(plugin.systemPrompt(), turns).thenAccept(result -> {
+        String prompt = plugin.systemPrompt() + plugin.api().promptFor(player);
+        var tools = plugin.api().specsFor(player);
+        ToolRunner runner = (name, args) -> {
+            CompletableFuture<String> done = new CompletableFuture<>();
+            if (!plugin.isEnabled()) { done.complete("error: shutting down"); return done; }
+            try {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    Player live = Bukkit.getPlayer(playerId);
+                    done.complete(live == null ? "error: the player left" : plugin.api().call(live, name, args));
+                });
+            } catch (RuntimeException e) {
+                done.complete("error: shutting down");
+            }
+            return done;
+        };
+        gemini.generate(prompt, turns, tools, runner).thenAccept(result -> {
             // HTTP thread: only hand over. When the plugin is being disabled the scheduler refuses tasks.
             if (!plugin.isEnabled()) return;
             try {
@@ -275,9 +292,9 @@ public final class ConversationManager {
     }
 
     /**
-     * SCP-079 says something. Everyone within the talk radius of the unit (and {@code player} in any case) gets
-     * it as a caption above the hotbar (also players whose client has no pack), and in chat according to
-     * captions.in-chat. With chat.global, everyone else online gets the chat line too, like any chat message.
+     * SCP-079 says something. Everyone within the talk radius of the unit gets it as a caption above the hotbar
+     * (and hears it, see voice), and in chat according to captions.in-chat. Nobody further away sees it, unless
+     * chat.global is switched on (off by default since 1.3.0).
      *
      * @param line   plain text; empty = nothing (a message blanked out in messages.yml)
      * @param typed  for chat only: wait the typing delay first (captions type themselves out)
@@ -296,8 +313,8 @@ public final class ConversationManager {
             audience.add(player);
         } else {
             double radius = settings.proximity().talkRadius() + HYSTERESIS;
+            // only players near the unit: one who walked away before the reply came does not get it either
             for (Player other : world.getPlayers()) if (unit.distanceSquared(other.getLocation()) <= radius * radius) audience.add(other);
-            if (!audience.contains(player)) audience.add(player);
         }
         Component chatLine = Messages.format(chat.format(), Placeholder.unparsed("message", line));
         int delay = typed && chat.typingDelay() ? (int) Math.min(chat.typingMaxTicks(), chat.typingBaseTicks() + line.length() * chat.typingTicksPerChar()) : 0;

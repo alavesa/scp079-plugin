@@ -1,0 +1,314 @@
+{
+  "voice.aa": {
+    "sounds": [
+      {
+        "name": "scp079:voice/aa",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ae": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ae",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ah": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ah",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ao": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ao",
+        "preload": true
+      }
+    ]
+  },
+  "voice.aw": {
+    "sounds": [
+      {
+        "name": "scp079:voice/aw",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ay": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ay",
+        "preload": true
+      }
+    ]
+  },
+  "voice.b": {
+    "sounds": [
+      {
+        "name": "scp079:voice/b",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ch": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ch",
+        "preload": true
+      }
+    ]
+  },
+  "voice.d": {
+    "sounds": [
+      {
+        "name": "scp079:voice/d",
+        "preload": true
+      }
+    ]
+  },
+  "voice.dh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/dh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.eh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/eh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.er": {
+    "sounds": [
+      {
+        "name": "scp079:voice/er",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ey": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ey",
+        "preload": true
+      }
+    ]
+  },
+  "voice.f": {
+    "sounds": [
+      {
+        "name": "scp079:voice/f",
+        "preload": true
+      }
+    ]
+  },
+  "voice.g": {
+    "sounds": [
+      {
+        "name": "scp079:voice/g",
+        "preload": true
+      }
+    ]
+  },
+  "voice.hh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/hh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ih": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ih",
+        "preload": true
+      }
+    ]
+  },
+  "voice.iy": {
+    "sounds": [
+      {
+        "name": "scp079:voice/iy",
+        "preload": true
+      }
+    ]
+  },
+  "voice.jh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/jh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.k": {
+    "sounds": [
+      {
+        "name": "scp079:voice/k",
+        "preload": true
+      }
+    ]
+  },
+  "voice.l": {
+    "sounds": [
+      {
+        "name": "scp079:voice/l",
+        "preload": true
+      }
+    ]
+  },
+  "voice.m": {
+    "sounds": [
+      {
+        "name": "scp079:voice/m",
+        "preload": true
+      }
+    ]
+  },
+  "voice.n": {
+    "sounds": [
+      {
+        "name": "scp079:voice/n",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ng": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ng",
+        "preload": true
+      }
+    ]
+  },
+  "voice.ow": {
+    "sounds": [
+      {
+        "name": "scp079:voice/ow",
+        "preload": true
+      }
+    ]
+  },
+  "voice.oy": {
+    "sounds": [
+      {
+        "name": "scp079:voice/oy",
+        "preload": true
+      }
+    ]
+  },
+  "voice.p": {
+    "sounds": [
+      {
+        "name": "scp079:voice/p",
+        "preload": true
+      }
+    ]
+  },
+  "voice.r": {
+    "sounds": [
+      {
+        "name": "scp079:voice/r",
+        "preload": true
+      }
+    ]
+  },
+  "voice.s": {
+    "sounds": [
+      {
+        "name": "scp079:voice/s",
+        "preload": true
+      }
+    ]
+  },
+  "voice.sh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/sh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.t": {
+    "sounds": [
+      {
+        "name": "scp079:voice/t",
+        "preload": true
+      }
+    ]
+  },
+  "voice.th": {
+    "sounds": [
+      {
+        "name": "scp079:voice/th",
+        "preload": true
+      }
+    ]
+  },
+  "voice.uh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/uh",
+        "preload": true
+      }
+    ]
+  },
+  "voice.uw": {
+    "sounds": [
+      {
+        "name": "scp079:voice/uw",
+        "preload": true
+      }
+    ]
+  },
+  "voice.v": {
+    "sounds": [
+      {
+        "name": "scp079:voice/v",
+        "preload": true
+      }
+    ]
+  },
+  "voice.w": {
+    "sounds": [
+      {
+        "name": "scp079:voice/w",
+        "preload": true
+      }
+    ]
+  },
+  "voice.y": {
+    "sounds": [
+      {
+        "name": "scp079:voice/y",
+        "preload": true
+      }
+    ]
+  },
+  "voice.z": {
+    "sounds": [
+      {
+        "name": "scp079:voice/z",
+        "preload": true
+      }
+    ]
+  },
+  "voice.zh": {
+    "sounds": [
+      {
+        "name": "scp079:voice/zh",
+        "preload": true
+      }
+    ]
+  }
+}

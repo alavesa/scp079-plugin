@@ -1,5 +1,7 @@
 package fi.alavesa.scp079;
 
+import fi.alavesa.scp079.api.ApiImpl;
+import fi.alavesa.scp079.api.Scp079Api;
 import fi.alavesa.scp079.bbmodel.ModelLog;
 import fi.alavesa.scp079.caption.CaptionService;
 import fi.alavesa.scp079.command.Scp079Command;
@@ -22,6 +24,7 @@ import fi.alavesa.scp079.unit.UnitListener;
 import fi.alavesa.scp079.unit.UnitManager;
 import fi.alavesa.scp079.unit.UnitStore;
 import fi.alavesa.scp079.util.Hashing;
+import fi.alavesa.scp079.voice.Pronouncer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -70,6 +73,8 @@ public final class Scp079Plugin extends JavaPlugin {
     private volatile Settings settings;
     private volatile Messages messages;
     private volatile String systemPrompt = "";
+    /** Text -> phonemes for the voice; null until the dictionary has been read (a second after start-up). */
+    private volatile Pronouncer pronouncer;
     private volatile ModelState modelState;
 
     private SecretStore secrets;
@@ -84,6 +89,7 @@ public final class Scp079Plugin extends JavaPlugin {
     private String sourceSignature = "";
     private ModelWatcher watcher;
     private final AtomicBoolean building = new AtomicBoolean();
+    private ApiImpl api;
 
     @Override
     public void onEnable() {
@@ -96,7 +102,16 @@ public final class Scp079Plugin extends JavaPlugin {
         items = new UnitItems(keys, this::settings, this::activeModel);
         gemini = new GeminiClient(this::settings, secrets);
         captions = new CaptionService(this);
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                pronouncer = Pronouncer.load();
+            } catch (IOException | RuntimeException e) {
+                getLogger().warning("The voice dictionary could not be read (" + e + ") - SCP-079 speaks without a voice");
+            }
+        });
         conversations = new ConversationManager(this, gemini);
+        api = new ApiImpl(() -> units == null ? 0 : units.count(), () -> Math.max(1, getConfig().getInt("api.note-minutes", 10)));
+        getServer().getServicesManager().register(Scp079Api.class, api, this, org.bukkit.plugin.ServicePriority.Normal);
         delivery = new PackDelivery(this);
 
         // At start-up the models are read on the server thread: units must be drawn before players join.
@@ -120,6 +135,7 @@ public final class Scp079Plugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
         stopTasks();
         if (captions != null) captions.clearAll();
         if (delivery != null) delivery.stop();
@@ -138,19 +154,25 @@ public final class Scp079Plugin extends JavaPlugin {
         // 1.2.1 wrote captions.in-chat: FALLBACK into every config; the server asked for no chat fallback at all,
         // so that value is switched to NEVER once (config-version 2 marks it done; a later FALLBACK stays)
         int configVersion = getConfig().getInt("config-version", 1);
-        if (configVersion < 3) {
+        if (configVersion < 4) {
+            // 1.2.2: no chat copy for players without the pack (the server asked for no fallback)
             if (configVersion < 2 && "FALLBACK".equalsIgnoreCase(getConfig().getString("captions.in-chat", ""))) {
                 getConfig().set("captions.in-chat", "NEVER");
                 getLogger().info("config.yml: captions.in-chat FALLBACK -> NEVER (captions only, no chat copy)");
             }
-            // 1.2.2's rules only asked for short sentences; 1.2.3 adds "never call yourself SCP-079" and "not pushy about
-            // the codes". An unedited 1.2.2 text (or none) is replaced; a text the server wrote itself stays.
+            // 1.2.3: 1.2.2's rules only asked for short sentences; now also "never call yourself SCP-079" and "not pushy
+            // about the codes". An unedited 1.2.2 text (or none) is replaced; a text the server wrote itself stays.
             String style = getConfig().getString("conversation.style");
-            if (style == null || style.strip().equals(Settings.STYLE_1_2_2)) {
+            if (configVersion < 3 && (style == null || style.strip().equals(Settings.STYLE_1_2_2))) {
                 getConfig().set("conversation.style", Settings.DEFAULT_STYLE);
                 if (style != null) getLogger().info("config.yml: conversation.style updated to the 1.2.3 rules");
             }
-            getConfig().set("config-version", 3);
+            // 1.3.0: SCP-079's words are for the players near it only - its chat line too
+            if (getConfig().getBoolean("chat.global", false)) {
+                getConfig().set("chat.global", false);
+                getLogger().info("config.yml: chat.global true -> false (SCP-079's lines only reach players near the unit)");
+            }
+            getConfig().set("config-version", 4);
             try {
                 getConfig().save(new File(getDataFolder(), "config.yml"));
             } catch (IOException e) {
@@ -370,7 +392,12 @@ public final class Scp079Plugin extends JavaPlugin {
 
     public ConversationManager conversations() { return conversations; }
 
+    /** Tools, context and notes other plugins gave SCP-079 (see {@link Scp079Api}). */
+    public ApiImpl api() { return api; }
+
     public CaptionService captions() { return captions; }
+
+    public Pronouncer pronouncer() { return pronouncer; }
 
     public PackDelivery delivery() { return delivery; }
 

@@ -7,6 +7,8 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.configuration.Configuration;
 
+import java.util.Objects;
+
 /**
  * Every player-facing string, from messages.yml, in MiniMessage format. A message set to an empty string
  * is simply not sent, which is how a server owner silences one. {@code <prefix>} works in every message.
@@ -21,12 +23,14 @@ public final class Messages {
     /** @param yaml messages.yml, with the bundled file as its defaults so that new keys work after an update */
     public Messages(Configuration yaml) {
         this.yaml = yaml;
-        this.prefix = Placeholder.parsed("prefix", yaml.getString("prefix", ""));
+        this.prefix = Placeholder.parsed("prefix", Objects.requireNonNullElse(yaml.getString("prefix"), ""));
     }
 
     /** @return the message, or null when it is missing or blanked out */
     public Component component(String key, TagResolver... placeholders) {
-        String raw = yaml.getString(key, "");
+        // no explicit default here: getString(key, "") would skip the bundled defaults, and keys added by an update
+        // (missing from an older messages.yml on disk) would never show
+        String raw = yaml.getString(key);
         if (raw == null || raw.isBlank()) return null;
         return MINI.deserialize(raw, TagResolver.builder().resolver(prefix).resolvers(placeholders).build());
     }

@@ -8,17 +8,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
  * Builds the pack's {@code minecraft:core/text} shader - the one that moves SCP-079's captions above the hotbar.
  * <p>
- * Minecraft runs only ONE copy of a core shader: the one in the topmost pack. IdCards, Radio, SuperbVehicles
- * and CCTV replace the same two files for their HUDs, so when any of them is installed this pack must not ship
- * a text shader that drops theirs. It starts from the most complete shader it can find on disk (IdCards' pack
- * already merges Radio's, which merges SuperbVehicles', which merges CCTV's) and adds the two SCP079 blocks to
- * it, copying the other plugins' include files along. With none of them installed, the base is the vanilla
+ * Minecraft runs only ONE copy of a core shader: the one in the topmost pack. Intercom, IdCards, Radio,
+ * SuperbVehicles and CCTV replace the same two files for their HUDs, so when any of them is installed this pack
+ * must not ship a text shader that drops theirs. It starts from the most complete shader it can find on disk
+ * (Intercom's pack merges ours, ours merges IdCards', which merges Radio's...) and adds the two SCP079 blocks to
+ * it, copying the other plugins' include files along. Taking Intercom's means this pack draws the Intercom
+ * banner as well whenever it ends up on top - also for a player who added the Intercom pack by hand, below the
+ * server's packs. With none of them installed, the base is the vanilla
  * 26.3 shader bundled in the jar.
  * <p>
  * Every block is inserted after a line that exists in the vanilla shader. When such a line is missing (another
@@ -59,12 +62,11 @@ public final class TextShaderMerge {
             if (source != null) { base = source; break; }
         }
         try {
-            if (base.vertex.contains("scp079_text_vertex") || base.fragment.contains("scp079_text_fragment")) {
-                throw new IllegalStateException("it already carries the SCP079 hooks");
-            }
-            String vertex = insertAfter(base.vertex, V_INCLUDE_AFTER, "// ===== SCP079 BEGIN =====\n#include <scp079:scp079_text_vertex.glsl>\n// ===== SCP079 END =====\n");
+            // Intercom's pack carries our blocks (its shader is built on ours). Ours are taken out and put back fresh:
+            // the result is the same either way, and the two plugins' packs settle instead of rebuilding each other.
+            String vertex = insertAfter(withoutOurs(base.vertex), V_INCLUDE_AFTER, "// ===== SCP079 BEGIN =====\n#include <scp079:scp079_text_vertex.glsl>\n// ===== SCP079 END =====\n");
             vertex = insertAfter(vertex, V_CALL_AFTER, "    // ===== SCP079 BEGIN =====\n    scp079_text_vertex(Color);\n    // ===== SCP079 END =====\n");
-            String fragment = insertAfter(base.fragment, F_INCLUDE_AFTER, "// ===== SCP079 BEGIN =====\n#include <scp079:scp079_text_fragment.glsl>\n// ===== SCP079 END =====\n");
+            String fragment = insertAfter(withoutOurs(base.fragment), F_INCLUDE_AFTER, "// ===== SCP079 BEGIN =====\n#include <scp079:scp079_text_fragment.glsl>\n// ===== SCP079 END =====\n");
             fragment = insertAfter(fragment, F_CALL_AFTER, "    // ===== SCP079 BEGIN =====\n    color = scp079_text_fragment(color, texColor, vertexColor, ColorModulator);\n    // ===== SCP079 END =====\n");
             Map<String, byte[]> files = new LinkedHashMap<>(base.includes);
             files.put(CORE + "vsh", vertex.getBytes(StandardCharsets.UTF_8));
@@ -75,6 +77,12 @@ public final class TextShaderMerge {
                 + "). SCP-079 speaks in chat instead. Update SCP079, or set captions.enabled: false to silence this.");
             return new Result(Map.of(), "none (merge with " + base.name + " refused)");
         }
+    }
+
+    private static final Pattern OURS = Pattern.compile("(?m)^[ \\t]*// ===== SCP079 BEGIN =====\\n[\\s\\S]*?^[ \\t]*// ===== SCP079 END =====\\n");
+
+    static String withoutOurs(String shader) {
+        return OURS.matcher(shader).replaceAll("");
     }
 
     private static String insertAfter(String s, String anchor, String add) {

@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  * the plugin never sees a negative radius or an unknown material. Safe to read from any thread.
  */
 public record Settings(Gemini gemini, Conversation conversation, Proximity proximity, Chat chat, Captions captions,
-                       Units units, Visual visual, Models models, Pack pack, Intercom intercom) {
+                       Units units, Visual visual, Models models, Pack pack, Intercom intercom, Voice voice) {
 
     public static final String NAMESPACE = "scp079";
 
@@ -61,6 +61,14 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
      * @param sound      sound event played instead of the intercom's chime
      */
     public record Intercom(String senderName, String senderLine, String textPrefix, String sound) { }
+
+    /**
+     * SCP-079's spoken voice, played while a caption is shown (see voice/).
+     *
+     * @param pitchVariation random +- per word, so the voice is not dead flat
+     * @param glitchChance   per phoneme: chance of a sudden pitch jump, a damaged machine
+     */
+    public record Voice(boolean enabled, float volume, float pitch, float pitchVariation, double glitchChance) { }
 
     public enum Delivery { AUTO, SAME_PORT, HTTP, URL, NONE }
 
@@ -117,7 +125,7 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             // chat.private, chat.format and chat.echo-format of 1.1 and older are no longer read: a player's message
             // is ordinary public chat now, and SCP-079's line has a new key so an old coloured format does not linger
             c.getString("chat.reply-format", "\\<SCP-079> <message>"),
-            c.getBoolean("chat.global", true),
+            c.getBoolean("chat.global", false),
             c.getBoolean("chat.typing-delay.enabled", true),
             Math.max(0, c.getInt("chat.typing-delay.base-ticks", 10)),
             Math.max(0, c.getDouble("chat.typing-delay.ticks-per-character", 0.25)),
@@ -201,6 +209,8 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             log.warning("resourcepack.delivery '" + c.getString("resourcepack.delivery") + "' is not auto, same-port, http, url or none - using auto");
         }
         Map<String, String> shaderZips = new LinkedHashMap<>();
+        // Intercom first, also in a config.yml written before 1.3.0: its shader is ours plus the banner (see TextShaderMerge)
+        shaderZips.put("Intercom", "Intercom/Intercom-pack.zip");
         ConfigurationSection zips = c.getConfigurationSection("resourcepack.text-shader-sources");
         if (zips != null) for (String key : zips.getKeys(false)) if (!zips.getString(key, "").isBlank()) shaderZips.put(key, zips.getString(key));
         Pack pack = new Pack(
@@ -224,7 +234,14 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             c.getString("intercom.text-prefix", "&a"),
             c.getString("intercom.sound", "intercom:chime_corrupt").trim());
 
-        return new Settings(gemini, conversation, proximity, chat, captions, units, visual, models, pack, intercom);
+        Voice voice = new Voice(
+            c.getBoolean("voice.enabled", true),
+            (float) clamp(c.getDouble("voice.volume", 1.0), 0, 4),
+            (float) clamp(c.getDouble("voice.pitch", 1.0), 0.5, 2),
+            (float) clamp(c.getDouble("voice.pitch-variation", 0.04), 0, 0.5),
+            clamp(c.getDouble("voice.glitch-chance", 0.03), 0, 1));
+
+        return new Settings(gemini, conversation, proximity, chat, captions, units, visual, models, pack, intercom, voice);
     }
 
     private static Palette palette(FileConfiguration c, Logger log) {

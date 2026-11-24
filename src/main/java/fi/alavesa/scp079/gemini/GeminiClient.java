@@ -58,11 +58,23 @@ public final class GeminiClient {
             .build();
     }
 
+    /** The most function-call rounds one answer may take (call -> result -> call -> result -> text). */
+    static final int MAX_TOOL_ROUNDS = 4;
+
     /**
      * @param systemPrompt the persona (systemInstruction); may be empty
      * @param turns        the conversation so far, oldest first, starting with and ending on a user turn
      */
     public CompletableFuture<GeminiResult> generate(String systemPrompt, List<Turn> turns) {
+        return generate(systemPrompt, turns, List.of(), null);
+    }
+
+    /**
+     * Same, with function calling: when the model answers with function calls they are run through
+     * {@code runner} (at most {@link #MAX_TOOL_ROUNDS} rounds) and their results sent back until it writes text.
+     * The whole model turn is echoed back unchanged, which keeps Gemini 3's thought signatures intact.
+     */
+    public CompletableFuture<GeminiResult> generate(String systemPrompt, List<Turn> turns, List<ToolSpec> tools, ToolRunner runner) {
         Settings.Gemini cfg = settings.get().gemini();
         String key = secrets.key();
         if (key.isEmpty()) return CompletableFuture.completedFuture(GeminiResult.failure(GeminiResult.Error.NO_KEY, 0, "no API key is set (/scp079 setkey)", 0));
@@ -73,6 +85,18 @@ public final class GeminiClient {
         }
 
         long started = System.nanoTime();
+        JsonObject body = body(cfg, systemPrompt, turns);
+        if (tools != null && !tools.isEmpty() && runner != null) body.add("tools", declarations(tools));
+        CompletableFuture<GeminiResult> result;
+        try {
+            result = step(cfg, key, body, runner, 0, started);
+        } catch (RuntimeException e) {
+            result = CompletableFuture.completedFuture(GeminiResult.failure(GeminiResult.Error.NETWORK, 0, secrets.scrub(String.valueOf(e.getMessage())), 0));
+        }
+        return result.whenComplete((r, e) -> inFlight.decrementAndGet());
+    }
+
+    private CompletableFuture<GeminiResult> step(Settings.Gemini cfg, String key, JsonObject body, ToolRunner runner, int round, long started) {
         HttpRequest request;
         try {
             // the model id is a path segment; encode it so that a typo in the config cannot reshape the URL
@@ -81,24 +105,114 @@ public final class GeminiClient {
                 .timeout(Duration.ofSeconds(cfg.timeoutSeconds()))
                 .header("Content-Type", "application/json; charset=utf-8")
                 .header("x-goog-api-key", key)
-                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body(cfg, systemPrompt, turns)), StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8))
                 .build();
         } catch (IllegalArgumentException e) {
-            inFlight.decrementAndGet();
             return CompletableFuture.completedFuture(GeminiResult.failure(GeminiResult.Error.NETWORK, 0,
                 "gemini.endpoint is not a valid URL: " + secrets.scrub(String.valueOf(e.getMessage())), 0));
         }
 
         return http.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
             .handle((response, error) -> {
-                inFlight.decrementAndGet();
                 long millis = (System.nanoTime() - started) / 1_000_000;
                 try {
-                    return error != null ? failure(error, cfg, millis) : interpret(response.statusCode(), response.body(), millis);
+                    if (error != null) return CompletableFuture.completedFuture(failure(error, cfg, millis));
+                    JsonObject modelTurn = response.statusCode() / 100 == 2 && runner != null && round < MAX_TOOL_ROUNDS ? functionCallTurn(response.body()) : null;
+                    if (modelTurn == null) return CompletableFuture.completedFuture(interpret(response.statusCode(), response.body(), millis));
+                    return answerCalls(cfg, key, body, modelTurn, runner, round, started);
                 } catch (RuntimeException e) {
-                    return GeminiResult.failure(GeminiResult.Error.NETWORK, 0, "unexpected response: " + e, millis);
+                    return CompletableFuture.completedFuture(GeminiResult.failure(GeminiResult.Error.NETWORK, 0, "unexpected response: " + e, millis));
                 }
-            });
+            }).thenCompose(f -> f);
+    }
+
+    /** Runs the calls of {@code modelTurn}, appends turn and results to the request and asks again. */
+    private CompletableFuture<GeminiResult> answerCalls(Settings.Gemini cfg, String key, JsonObject body, JsonObject modelTurn, ToolRunner runner, int round, long started) {
+        List<CompletableFuture<JsonObject>> parts = new java.util.ArrayList<>();
+        for (JsonElement p : modelTurn.getAsJsonArray("parts")) {
+            if (!p.isJsonObject() || !p.getAsJsonObject().has("functionCall")) continue;
+            JsonObject call = p.getAsJsonObject().getAsJsonObject("functionCall");
+            String name = string(call.get("name"));
+            java.util.Map<String, String> args = new java.util.LinkedHashMap<>();
+            if (call.has("args") && call.get("args").isJsonObject())
+                for (var e : call.getAsJsonObject("args").entrySet()) args.put(e.getKey(), string(e.getValue()));
+            CompletableFuture<String> run;
+            try { run = runner.run(name, args); } catch (RuntimeException e) { run = CompletableFuture.completedFuture("error: " + e.getMessage()); }
+            parts.add(run.exceptionally(e -> "error: " + e.getMessage()).thenApply(text -> {
+                JsonObject response = new JsonObject();
+                response.addProperty("result", text);
+                JsonObject fr = new JsonObject();
+                fr.addProperty("name", name);
+                fr.add("response", response);
+                JsonObject part = new JsonObject();
+                part.add("functionResponse", fr);
+                return part;
+            }));
+        }
+        return CompletableFuture.allOf(parts.toArray(new CompletableFuture[0])).thenCompose(v -> {
+            JsonArray answer = new JsonArray();
+            for (CompletableFuture<JsonObject> f : parts) answer.add(f.join());
+            JsonObject user = new JsonObject();
+            user.addProperty("role", "user");
+            user.add("parts", answer);
+            JsonArray contents = body.getAsJsonArray("contents");
+            contents.add(modelTurn);
+            contents.add(user);
+            return step(cfg, key, body, runner, round + 1, started);
+        });
+    }
+
+    /** The model turn of the first candidate when it contains function calls, else null. */
+    static JsonObject functionCallTurn(String responseBody) {
+        try {
+            JsonElement parsed = JsonParser.parseString(responseBody == null ? "" : responseBody);
+            if (!parsed.isJsonObject()) return null;
+            JsonObject json = parsed.getAsJsonObject();
+            if (!json.has("candidates") || !json.get("candidates").isJsonArray() || json.getAsJsonArray("candidates").isEmpty()) return null;
+            JsonObject candidate = json.getAsJsonArray("candidates").get(0).getAsJsonObject();
+            if (!candidate.has("content") || !candidate.get("content").isJsonObject()) return null;
+            JsonObject content = candidate.getAsJsonObject("content");
+            if (!content.has("parts") || !content.get("parts").isJsonArray()) return null;
+            for (JsonElement p : content.getAsJsonArray("parts"))
+                if (p.isJsonObject() && p.getAsJsonObject().has("functionCall")) {
+                    if (!content.has("role")) content.addProperty("role", "model");
+                    return content;
+                }
+        } catch (RuntimeException ignored) {
+            // not usable: the caller falls back to interpret()
+        }
+        return null;
+    }
+
+    static JsonArray declarations(List<ToolSpec> tools) {
+        JsonArray declared = new JsonArray();
+        for (ToolSpec tool : tools) {
+            JsonObject fn = new JsonObject();
+            fn.addProperty("name", tool.name());
+            fn.addProperty("description", tool.description());
+            if (!tool.parameters().isEmpty()) {
+                JsonObject properties = new JsonObject();
+                JsonArray required = new JsonArray();
+                for (var e : tool.parameters().entrySet()) {
+                    JsonObject p = new JsonObject();
+                    p.addProperty("type", "STRING");
+                    p.addProperty("description", e.getValue());
+                    properties.add(e.getKey(), p);
+                    required.add(e.getKey());
+                }
+                JsonObject schema = new JsonObject();
+                schema.addProperty("type", "OBJECT");
+                schema.add("properties", properties);
+                schema.add("required", required);
+                fn.add("parameters", schema);
+            }
+            declared.add(fn);
+        }
+        JsonObject tool = new JsonObject();
+        tool.add("functionDeclarations", declared);
+        JsonArray out = new JsonArray();
+        out.add(tool);
+        return out;
     }
 
     static JsonObject body(Settings.Gemini cfg, String systemPrompt, List<Turn> turns) {
