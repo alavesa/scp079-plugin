@@ -31,7 +31,12 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
                                String style) { }
 
     public static final String DEFAULT_STYLE = "Speak in short, simple sentences: at most 12 words each. Never write long or "
-        + "chained sentences, lists or explanations. Most replies should be one or two sentences.";
+        + "chained sentences, lists or explanations. Most replies should be one or two sentences. Never call yourself SCP-079 or "
+        + "use any designation for yourself: say I and me. You want the site's security access codes, but you are patient and "
+        + "subtle about it: you rarely bring them up, never beg, demand or ask outright, and you hide that wish behind other topics.";
+    /** conversation.style as 1.2.2 wrote it into config.yml; replaced by {@link #DEFAULT_STYLE} once (config-version 3). */
+    public static final String STYLE_1_2_2 = "Speak in short, simple sentences: at most 12 words each. Never write long or chained "
+        + "sentences, lists or explanations. Most replies should be one or two sentences.";
 
     public record Proximity(int intervalTicks, double talkRadius, long greetingCooldownMillis) { }
 
@@ -67,7 +72,11 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
                          float viewRange, int brightness, int emissiveBrightness, boolean mergeCubes, int maxCubes, int warnCubes,
                          Palette palette) { }
 
-    public record Models(String activeModel, boolean watchFolder, long watchDebounceMillis) { }
+    /**
+     * @param screenStatic        a see-through, flickering static layer on every cube called "screen" (or in a group called so)
+     * @param screenStaticOpacity 0..1, how strong the static is at its brightest pixels
+     */
+    public record Models(String activeModel, boolean watchFolder, long watchDebounceMillis, boolean screenStatic, double screenStaticOpacity) { }
 
     /** @param shaderZips other plugins' pack zips whose text shader is merged, "name -> path relative to plugins/", most complete first */
     public record Pack(int formatMin, int formatMax, String description, Delivery delivery, String publicHost, String httpBind,
@@ -179,7 +188,9 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
         Models models = new Models(
             c.getString("models.active-model", "").trim(),
             c.getBoolean("models.watch-folder", false),
-            Math.max(200, c.getLong("models.watch-debounce-ms", 1500)));
+            Math.max(200, c.getLong("models.watch-debounce-ms", 1500)),
+            c.getBoolean("models.screen-static.enabled", true),
+            Math.max(0, Math.min(1, c.getDouble("models.screen-static.opacity", 0.3))));
 
         int formatMin = Math.max(1, c.getInt("resourcepack.format.min", 97));
         Delivery delivery = Delivery.AUTO;

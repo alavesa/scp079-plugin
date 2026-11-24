@@ -202,6 +202,9 @@ public final class PackDelivery implements Listener {
         // loaded: it sits above ours, and if it carries a text shader without our hooks, captions do not work.
         // Send ours again - capped, so two plugins doing the same cannot ping-pong for ever.
         if (!plugin.captionShaderShipped() || !sent.contains(id) || INTERCOM_PACK_ID.equals(event.getID())) return;
+        // With Intercom installed, its pack carries our caption lines and keeps itself on top. Pushing ours again
+        // as well only put ours above it (both answering the same third pack), and then the banner was not drawn.
+        if (Bukkit.getPluginManager().isPluginEnabled("Intercom")) return;
         Set<UUID> newer = pushedAfterOurs.computeIfAbsent(id, k -> new HashSet<>());
         if (st == PlayerResourcePackStatusEvent.Status.ACCEPTED) {
             newer.add(event.getID());

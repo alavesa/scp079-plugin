@@ -21,6 +21,24 @@ The model is a Blockbench file (`.bbmodel`) you can replace with your own.
 - [Troubleshooting](#troubleshooting)
 - [What was verified, and what was not](#what-was-verified-and-what-was-not)
 
+## Changes in 1.2.3
+
+- **Rules for the AI:** `conversation.style` now also says: never call yourself SCP-079 (it says "I"), and
+  want the access codes patiently and subtly - rarely bring them up, never beg, demand or ask outright. A
+  config.yml that still has 1.2.2's text gets the new one once (`config-version: 3`); your own text stays.
+- **Static on the screen:** every cube whose name starts with `screen` (or that is inside a group named so)
+  gets a see-through, flickering static layer just in front of it, like an old monitor. It is part of the
+  item model, so it needs nothing at run time. `models.screen-static.enabled` / `opacity` (0.3).
+  The starter model's screen cube is called `screen`; in your own model, name the screen cube that way.
+- **No "listening" and "out of range" messages** any more: the code that sent them is gone, so a
+  messages.yml from an older version that still has text for them no longer shows it.
+- **Intercom keeps the top place:** with Intercom installed, SCP079 no longer sends its pack again when
+  another plugin's pack loads above it. Intercom's pack contains SCP079's caption lines and does that job;
+  both doing it could leave SCP079's pack on top, and then Intercom's banner was not drawn.
+- Seen on a real 26.3 client: the static over the starter model's screen (one still frame - the flicker
+  itself was not watched), captions, `/scp079 announce`. Not checked: what real Gemini replies sound like
+  with the new rules.
+
 ## Changes in 1.2.2
 
 - **Shorter sentences.** New `conversation.style` in config.yml: a rule added after `system_prompt.txt` on

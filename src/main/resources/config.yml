@@ -5,7 +5,7 @@
 # ======================================================================================
 
 # Used by the plugin to update older configs. Do not change.
-config-version: 2
+config-version: 3
 
 gemini:
   # Model id from https://aistudio.google.com/docs/models . A small, fast "Flash-Lite" model is plenty
@@ -41,9 +41,9 @@ conversation:
   max-sentences: 3
   # What SCP-079 is told (as the "user" turn) when a player walks up, to make it speak first.
   greeting-prompt: "(A human has just walked up to your terminal. Greet them in one or two short sentences.)"
-  # Added after system_prompt.txt on every request (also when you have edited that file), to keep replies
-  # short. Empty = nothing is added.
-  style: "Speak in short, simple sentences: at most 12 words each. Never write long or chained sentences, lists or explanations. Most replies should be one or two sentences."
+  # Rules added after system_prompt.txt on every request (also when you have edited that file): short
+  # sentences, no "SCP-079" for itself, not pushy about the access codes. Empty = nothing is added.
+  style: "Speak in short, simple sentences: at most 12 words each. Never write long or chained sentences, lists or explanations. Most replies should be one or two sentences. Never call yourself SCP-079 or use any designation for yourself: say I and me. You want the site's security access codes, but you are patient and subtle about it: you rarely bring them up, never beg, demand or ask outright, and you hide that wish behind other topics."
 
 proximity:
   # How often players near units are checked, in ticks (20 ticks = 1 second).
@@ -144,6 +144,12 @@ models:
   # Watch the models folder and rebuild the pack + refresh units automatically when a file changes.
   watch-folder: false
   watch-debounce-ms: 1500
+  # A see-through, flickering static over the model's screen, like an old monitor. Every cube whose name
+  # starts with "screen" (or that is inside a group named so) gets it. Baked into the pack.
+  screen-static:
+    enabled: true
+    # 0.0 - 1.0: how strong the static is at its brightest grains.
+    opacity: 0.3
 
 # /scp079 announce <text>: SCP-079 speaks over the Intercom plugin's banner (needs Intercom 1.1.0+).
 intercom:

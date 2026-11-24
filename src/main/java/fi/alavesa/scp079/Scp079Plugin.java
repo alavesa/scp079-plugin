@@ -137,12 +137,20 @@ public final class Scp079Plugin extends JavaPlugin {
         reloadConfig();
         // 1.2.1 wrote captions.in-chat: FALLBACK into every config; the server asked for no chat fallback at all,
         // so that value is switched to NEVER once (config-version 2 marks it done; a later FALLBACK stays)
-        if (getConfig().getInt("config-version", 1) < 2) {
-            if ("FALLBACK".equalsIgnoreCase(getConfig().getString("captions.in-chat", ""))) {
+        int configVersion = getConfig().getInt("config-version", 1);
+        if (configVersion < 3) {
+            if (configVersion < 2 && "FALLBACK".equalsIgnoreCase(getConfig().getString("captions.in-chat", ""))) {
                 getConfig().set("captions.in-chat", "NEVER");
                 getLogger().info("config.yml: captions.in-chat FALLBACK -> NEVER (captions only, no chat copy)");
             }
-            getConfig().set("config-version", 2);
+            // 1.2.2's rules only asked for short sentences; 1.2.3 adds "never call yourself SCP-079" and "not pushy about
+            // the codes". An unedited 1.2.2 text (or none) is replaced; a text the server wrote itself stays.
+            String style = getConfig().getString("conversation.style");
+            if (style == null || style.strip().equals(Settings.STYLE_1_2_2)) {
+                getConfig().set("conversation.style", Settings.DEFAULT_STYLE);
+                if (style != null) getLogger().info("config.yml: conversation.style updated to the 1.2.3 rules");
+            }
+            getConfig().set("config-version", 3);
             try {
                 getConfig().save(new File(getDataFolder(), "config.yml"));
             } catch (IOException e) {
@@ -269,7 +277,7 @@ public final class Scp079Plugin extends JavaPlugin {
         File plugins = getDataFolder().getParentFile();
         String signature = PackAssets.sourceSignature(plugins, s.pack());
         PackAssets.Extras extras = PackAssets.collect(getFile(), plugins, s);
-        return new Built(PackService.build(getDataFolder().toPath(), s.pack(), extras.files()), extras, signature);
+        return new Built(PackService.build(getDataFolder().toPath(), s.pack(), s.models(), extras.files()), extras, signature);
     }
 
     /** Picks the active model, plans its cubes and publishes the result. Server thread. */

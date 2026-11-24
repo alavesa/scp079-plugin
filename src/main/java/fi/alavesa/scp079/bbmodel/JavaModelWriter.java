@@ -17,8 +17,13 @@ import java.util.Map;
 public final class JavaModelWriter {
 
     private final String namespace;
+    private final boolean screenStatic;
 
-    public JavaModelWriter(String namespace) { this.namespace = namespace; }
+    /** @param screenStatic lay {@link ScreenStatic} over every screen cube */
+    public JavaModelWriter(String namespace, boolean screenStatic) {
+        this.namespace = namespace;
+        this.screenStatic = screenStatic;
+    }
 
     /** Resource location of a model texture, without the "textures/" prefix and ".png" suffix. */
     public String textureLocation(BbModel model, BbModel.Texture texture) {
@@ -44,6 +49,10 @@ public final class JavaModelWriter {
                 continue;
             }
             elements.add(json);
+            if (screenStatic && ScreenStatic.isScreen(element.cube())) {
+                elements.add(ScreenStatic.overlay(json));
+                textures.addProperty(ScreenStatic.KEY, namespace + ":" + ScreenStatic.TEXTURE);
+            }
         }
         out.add("elements", elements);
         out.add("display", DisplayTransforms.build(model.display, geometry, log));

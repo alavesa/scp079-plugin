@@ -83,12 +83,6 @@ memory:
   reset-player: "<prefix> <gray>Conversation memory cleared for <white><player></white>."
   unknown-player: "<prefix> <red>No online player named <player>."
 
-talk:
-  # Shown when a player walks back into range before the greeting cooldown is over.
-  listening: ""
-  # Shown when a player walks out of range.
-  ended: ""
-
 # In-character lines for when Gemini cannot answer. SCP-079 says them like any other line (as a
 # caption, or in chat). Plain text only. Players never see technical details.
 error:

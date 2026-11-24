@@ -10,6 +10,7 @@ import fi.alavesa.scp079.bbmodel.JavaModelWriter;
 import fi.alavesa.scp079.bbmodel.ModelException;
 import fi.alavesa.scp079.bbmodel.ModelGeometry;
 import fi.alavesa.scp079.bbmodel.ModelLog;
+import fi.alavesa.scp079.bbmodel.ScreenStatic;
 import fi.alavesa.scp079.config.Settings;
 import fi.alavesa.scp079.util.Hashing;
 
@@ -78,7 +79,7 @@ public final class PackService {
     private PackService() { }
 
     /** @param extraFiles pack files that do not come from the models (captions: font, shader...), path -> bytes */
-    public static Result build(Path dataFolder, Settings.Pack settings, Map<String, byte[]> extraFiles) {
+    public static Result build(Path dataFolder, Settings.Pack settings, Settings.Models modelSettings, Map<String, byte[]> extraFiles) {
         Path modelsDir = dataFolder.resolve(MODELS_DIR), folder = dataFolder.resolve(PACK_DIR), zip = dataFolder.resolve(ZIP_NAME);
         List<String> problems = new ArrayList<>();
         Map<String, LoadedModel> models = new LinkedHashMap<>();
@@ -104,7 +105,12 @@ public final class PackService {
             problems.add("The models folder could not be read: " + e.getMessage());
         }
 
-        JavaModelWriter writer = new JavaModelWriter(Settings.NAMESPACE);
+        JavaModelWriter writer = new JavaModelWriter(Settings.NAMESPACE, modelSettings.screenStatic());
+        if (modelSettings.screenStatic()) {
+            String path = "assets/" + Settings.NAMESPACE + "/textures/" + ScreenStatic.TEXTURE + ".png";
+            files.put(path, ScreenStatic.png(modelSettings.screenStaticOpacity()));
+            files.put(path + ".mcmeta", ScreenStatic.mcmeta());
+        }
         for (Path source : sources) {
             String fileName = source.getFileName().toString();
             String id = fileName.substring(0, fileName.length() - ".bbmodel".length()).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");

@@ -74,7 +74,7 @@ public final class ConversationManager {
         for (Player player : Bukkit.getOnlinePlayers()) {
             State state = states.get(player.getUniqueId());
             if (!player.hasPermission(Scp079Plugin.PERMISSION_TALK) || player.getGameMode() == GameMode.SPECTATOR || player.isDead()) {
-                if (state != null && state.activeUnit != -1) end(player, state, false);
+                if (state != null && state.activeUnit != -1) end(player, state);
                 continue;
             }
             Location at = player.getLocation();
@@ -84,7 +84,7 @@ public final class ConversationManager {
                 Unit unit = plugin.units().get(state.activeUnit);
                 double leave = cfg.talkRadius() + HYSTERESIS;
                 if (unit != null && unit.worldId().equals(worldId) && unit.distanceSquared(at) <= leave * leave) continue; // still talking
-                end(player, state, true);
+                end(player, state);
             }
 
             Unit nearest = null;
@@ -122,16 +122,15 @@ public final class ConversationManager {
         if (greeted == null || now - greeted >= settings.proximity().greetingCooldownMillis()) {
             state.greetedAt.put(unit.id(), now);
             request(player, state, unit, settings.conversation().greetingPrompt(), true);
-        } else {
-            plugin.messages().send(player, "talk.listening");
         }
+        // no "SCP-079 is listening" line: walking back up to the unit is silent until it speaks
     }
 
-    private void end(Player player, State state, boolean announce) {
+    private void end(Player player, State state) {
         plugin.captions().clear(player);
         state.activeUnit = -1;
         state.lastActivity = System.currentTimeMillis();
-        if (announce) plugin.messages().send(player, "talk.ended");
+        // no "out of range" line: SCP-079 just stops talking to a player who walks away
     }
 
     /** Called when a player leaves the server: the conversation ends, the memory stays for memory-minutes. */
