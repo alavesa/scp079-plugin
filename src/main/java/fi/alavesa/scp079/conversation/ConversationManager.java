@@ -308,7 +308,8 @@ public final class ConversationManager {
             Settings.InChat inChat = settings.captions().inChat();
             // without the pack's font a caption is unreadable boxes: those players need the words in chat
             boolean readable = caption && plugin.delivery().packLoaded(listener);
-            if (inChat == Settings.InChat.ALWAYS || (!readable && inChat == Settings.InChat.FALLBACK)) {
+            // with captions switched off, chat is the only way the line is heard
+            if (!caption || inChat == Settings.InChat.ALWAYS || (!readable && inChat == Settings.InChat.FALLBACK)) {
                 Runnable say = () -> {
                     if (!listener.isOnline()) return;
                     listener.sendMessage(chatLine);

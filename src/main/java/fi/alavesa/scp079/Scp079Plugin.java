@@ -135,6 +135,20 @@ public final class Scp079Plugin extends JavaPlugin {
     private void loadFiles() {
         saveDefaultConfig();
         reloadConfig();
+        // 1.2.1 wrote captions.in-chat: FALLBACK into every config; the server asked for no chat fallback at all,
+        // so that value is switched to NEVER once (config-version 2 marks it done; a later FALLBACK stays)
+        if (getConfig().getInt("config-version", 1) < 2) {
+            if ("FALLBACK".equalsIgnoreCase(getConfig().getString("captions.in-chat", ""))) {
+                getConfig().set("captions.in-chat", "NEVER");
+                getLogger().info("config.yml: captions.in-chat FALLBACK -> NEVER (captions only, no chat copy)");
+            }
+            getConfig().set("config-version", 2);
+            try {
+                getConfig().save(new File(getDataFolder(), "config.yml"));
+            } catch (IOException e) {
+                getLogger().warning("config.yml could not be saved (" + e.getMessage() + ") - the change applies until the next restart only");
+            }
+        }
         settings = Settings.read(getConfig(), getLogger());
 
         File messagesFile = new File(getDataFolder(), "messages.yml");
@@ -165,6 +179,9 @@ public final class Scp079Plugin extends JavaPlugin {
             systemPrompt = "";
         }
         if (systemPrompt.isEmpty()) getLogger().warning("system_prompt.txt is empty - Gemini will answer without the SCP-079 persona");
+        // conversation.style goes after the persona, so it also applies to a server's own system_prompt.txt
+        String style = settings.conversation().style();
+        if (!style.isEmpty()) systemPrompt = systemPrompt.isEmpty() ? style : systemPrompt + "\n\n" + style;
     }
 
     private void startTasks() {

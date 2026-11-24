@@ -27,7 +27,11 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
     public record Gemini(String model, String endpoint, double temperature, int maxOutputTokens, String thinkingLevel,
                          int timeoutSeconds, long playerCooldownMillis, int maxConcurrent) { }
 
-    public record Conversation(int historyTurns, long memoryMillis, int maxMessageLength, int maxSentences, String greetingPrompt) { }
+    public record Conversation(int historyTurns, long memoryMillis, int maxMessageLength, int maxSentences, String greetingPrompt,
+                               String style) { }
+
+    public static final String DEFAULT_STYLE = "Speak in short, simple sentences: at most 12 words each. Never write long or "
+        + "chained sentences, lists or explanations. Most replies should be one or two sentences.";
 
     public record Proximity(int intervalTicks, double talkRadius, long greetingCooldownMillis) { }
 
@@ -86,7 +90,8 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
             (long) (Math.max(0, c.getDouble("conversation.memory-minutes", 30)) * 60_000),
             Math.max(20, c.getInt("conversation.max-message-length", 300)),
             Math.max(1, c.getInt("conversation.max-sentences", 3)),
-            c.getString("conversation.greeting-prompt", "(A human has just walked up to your terminal. Greet them in one or two short sentences.)"));
+            c.getString("conversation.greeting-prompt", "(A human has just walked up to your terminal. Greet them in one or two short sentences.)"),
+            c.getString("conversation.style", DEFAULT_STYLE).strip());
 
         Proximity proximity = new Proximity(
             Math.max(1, c.getInt("proximity.check-interval-ticks", 20)),
@@ -120,11 +125,11 @@ public record Settings(Gemini gemini, Conversation conversation, Proximity proxi
         } catch (NumberFormatException e) {
             log.warning("captions.color '" + c.getString("captions.color") + "' is not a colour like \"#7DFF99\" - using the default");
         }
-        InChat inChat = InChat.FALLBACK;
+        InChat inChat = InChat.NEVER;
         try {
-            inChat = InChat.valueOf(c.getString("captions.in-chat", "FALLBACK").trim().toUpperCase(Locale.ROOT));
+            inChat = InChat.valueOf(c.getString("captions.in-chat", "NEVER").trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            log.warning("captions.in-chat '" + c.getString("captions.in-chat") + "' is not NEVER, FALLBACK or ALWAYS - using FALLBACK");
+            log.warning("captions.in-chat '" + c.getString("captions.in-chat") + "' is not NEVER, FALLBACK or ALWAYS - using NEVER");
         }
         Captions captions = new Captions(
             c.getBoolean("captions.enabled", true),

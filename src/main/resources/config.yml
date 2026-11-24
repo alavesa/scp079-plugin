@@ -4,6 +4,9 @@
 #  the AI persona is in system_prompt.txt, the API key is in secrets.yml.
 # ======================================================================================
 
+# Used by the plugin to update older configs. Do not change.
+config-version: 2
+
 gemini:
   # Model id from https://aistudio.google.com/docs/models . A small, fast "Flash-Lite" model is plenty
   # for three-sentence replies and is the kindest to free-tier rate limits.
@@ -38,6 +41,9 @@ conversation:
   max-sentences: 3
   # What SCP-079 is told (as the "user" turn) when a player walks up, to make it speak first.
   greeting-prompt: "(A human has just walked up to your terminal. Greet them in one or two short sentences.)"
+  # Added after system_prompt.txt on every request (also when you have edited that file), to keep replies
+  # short. Empty = nothing is added.
+  style: "Speak in short, simple sentences: at most 12 words each. Never write long or chained sentences, lists or explanations. Most replies should be one or two sentences."
 
 proximity:
   # How often players near units are checked, in ticks (20 ticks = 1 second).
@@ -73,10 +79,10 @@ captions:
   # Also write what SCP-079 says into chat?
   # Captions are sent to EVERY player, also those whose client did not load the resource pack. Without
   # the pack's font and shader a caption is drawn as placeholder boxes at the top of the screen, so:
+  #   NEVER     captions only (default; with chat.global the line still goes to players far away)
   #   FALLBACK  players whose client did not load the pack also get the line in chat
   #   ALWAYS    everybody near the unit gets the line in chat too
-  #   NEVER     captions only
-  in-chat: FALLBACK
+  in-chat: NEVER
 
 chat:
   # What players type near SCP-079 is ordinary chat: it is sent to everyone and formatted by Minecraft or

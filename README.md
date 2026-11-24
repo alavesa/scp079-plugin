@@ -21,6 +21,17 @@ The model is a Blockbench file (`.bbmodel`) you can replace with your own.
 - [Troubleshooting](#troubleshooting)
 - [What was verified, and what was not](#what-was-verified-and-what-was-not)
 
+## Changes in 1.2.2
+
+- **Shorter sentences.** New `conversation.style` in config.yml: a rule added after `system_prompt.txt` on
+  every request (short, simple sentences of at most 12 words; usually one or two sentences). It is added
+  after the persona, so it also applies when you have written your own `system_prompt.txt`. Empty = off.
+- **No chat fallback.** Captions are the only way players near the unit hear SCP-079:
+  `captions.in-chat` is now `NEVER` by default, and a config that still has 1.2.1's `FALLBACK` is switched
+  to `NEVER` once on start-up (`config-version: 2` marks this as done). Set `FALLBACK` or `ALWAYS` again if
+  you want it back. With `chat.global: true` players away from the unit still get the chat line, as before.
+  Players whose client did not load the pack see the caption as placeholder boxes at the top of the screen.
+
 ## Changes in 1.2.1
 
 - **Captions are sent to every player, with or without the resource pack.** Before, a player whose client
@@ -154,7 +165,8 @@ talk radius gets SCP-079's answer as a caption; its chat line goes to everyone o
 
 SCP-079's persona is `plugins/SCP079/system_prompt.txt`. Edit it and run `/scp079 reload`. Whatever
 the prompt says, replies are cut to 3 sentences (`conversation.max-sentences`) and stripped of
-markdown, quotes and "SCP-079:" prefixes.
+markdown, quotes and "SCP-079:" prefixes. `conversation.style` (the "short sentences" rule) is added
+after the persona on every request.
 
 ## Captions
 
@@ -172,14 +184,14 @@ the answer is on its way, dots cycle in a small box.
 | `color` | `#7DFF99` | Text colour. |
 | `characters-per-tick` | `1.0` | Typing speed (1 = 20 characters a second). |
 | `hold.*` | | How long a finished caption stays. |
-| `in-chat` | `FALLBACK` | Also write the line into chat: `FALLBACK` for players whose client did not load the pack, `ALWAYS`, `NEVER`. |
+| `in-chat` | `NEVER` | Also write the line into chat: `NEVER` (captions only), `FALLBACK` for players whose client did not load the pack, `ALWAYS`. |
 
 Good to know:
 
 - **The caption font has capitals only** - a terminal font. Lower case is shown as upper case.
 - Captions are sent to everyone, but only a client with the resource pack can draw them. A player
-  who declined it, or whose download failed, gets placeholder boxes at the top of the screen and
-  reads SCP-079 in chat (`in-chat: FALLBACK`).
+  who declined it, or whose download failed, gets placeholder boxes at the top of the screen (and the
+  words in chat only if you set `in-chat: FALLBACK`).
 - Changing `scale`, `bottom-offset`, `background-opacity` or `color` changes the pack; `/scp079 reload`
   re-sends it to everyone online.
 - The team asked for "post effects and core/text shaders". Captions are drawn by the `core/text`
