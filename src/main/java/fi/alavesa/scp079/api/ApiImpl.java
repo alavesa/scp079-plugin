@@ -19,6 +19,9 @@ public final class ApiImpl implements Scp079Api {
     private final Map<String, Owned<Tool>> tools = new LinkedHashMap<>();
     private final List<Owned<Function<Player, String>>> contexts = new ArrayList<>();
     private final Map<String, Note> notes = new LinkedHashMap<>();
+    private final fi.alavesa.scp079.gemini.Safety.Limiter limiter = new fi.alavesa.scp079.gemini.Safety.Limiter();
+    private java.util.function.Supplier<org.bukkit.configuration.file.FileConfiguration> config = () -> null;
+    private java.util.logging.Logger log = java.util.logging.Logger.getLogger("SCP079");
     private final java.util.function.IntSupplier unitCount;
     private final java.util.function.IntSupplier noteMinutes;
 
@@ -42,6 +45,18 @@ public final class ApiImpl implements Scp079Api {
         notes.values().removeIf(n -> n.owner() == owner);
     }
 
+    /** Config and logger for the tool safeguards (safety.tool-*); optional, defaults apply without. */
+    public void safeguards(java.util.function.Supplier<org.bukkit.configuration.file.FileConfiguration> config, java.util.logging.Logger log) {
+        this.config = config;
+        this.log = log;
+    }
+
+    private java.util.function.Function<String, String> announcer = t -> "the intercom is not available";
+
+    public void announcer(java.util.function.Function<String, String> announcer) { this.announcer = announcer; }
+
+    @Override public String announce(String text) { return announcer.apply(text); }
+
     @Override public boolean hasUnits() { return unitCount.getAsInt() > 0; }
 
     /** The tools offered to this player's conversation. */
@@ -55,15 +70,33 @@ public final class ApiImpl implements Scp079Api {
         return out;
     }
 
-    /** Runs a tool the model asked for; never throws. */
+    /**
+     * Runs a tool the model asked for; never throws. Safeguards: the arguments are cleaned and capped, a player can only
+     * trigger a tool every {@code safety.tool-cooldown-seconds} and {@code safety.tool-max-per-minute} times a minute,
+     * the result is capped, and every call is logged.
+     */
     public String call(Player player, String name, Map<String, String> arguments) {
         Owned<Tool> tool = tools.get(name);
         if (tool == null) return "error: there is no tool called " + name;
+        var cfg = config.get();
+        long gap = (long) ((cfg == null ? 2.0 : cfg.getDouble("safety.tool-cooldown-seconds", 2.0)) * 1000);
+        int perMinute = cfg == null ? 8 : cfg.getInt("safety.tool-max-per-minute", 8);
+        String limited = limiter.check(player.getUniqueId(), System.currentTimeMillis(), gap, perMinute);
+        if (limited != null) {
+            log.info("tool " + name + " by " + player.getName() + " refused: " + limited);
+            return "REFUSED: " + limited + ". Tell the player to slow down.";
+        }
+        Map<String, String> clean = new LinkedHashMap<>();
+        for (var e : tool.value().parameters().keySet()) clean.put(e, fi.alavesa.scp079.gemini.Safety.argument(arguments.get(e)));
         try {
-            String result = tool.value().handler().call(player, arguments);
-            return result == null ? "done" : result;
+            String result = tool.value().handler().call(player, clean);
+            if (result == null) result = "done";
+            if (result.length() > 600) result = result.substring(0, 600) + "...";
+            log.info("tool " + name + clean + " by " + player.getName() + " -> " + result);
+            return result;
         } catch (RuntimeException e) {
-            return "error: " + e.getClass().getSimpleName() + ": " + e.getMessage();
+            log.warning("tool " + name + " by " + player.getName() + " failed: " + e);
+            return "error: that did not work";
         }
     }
 

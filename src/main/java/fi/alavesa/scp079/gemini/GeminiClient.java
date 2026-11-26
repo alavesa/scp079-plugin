@@ -39,12 +39,19 @@ public final class GeminiClient {
     private static final Gson GSON = new Gson();
 
     private final Supplier<Settings> settings;
+    private final Supplier<String> safety;
     private final SecretStore secrets;
     private final ExecutorService executor;
     private final HttpClient http;
     private final AtomicInteger inFlight = new AtomicInteger();
 
     public GeminiClient(Supplier<Settings> settings, SecretStore secrets) {
+        this(settings, secrets, () -> DEFAULT_SAFETY);
+    }
+
+    /** @param safety Google's block threshold: BLOCK_LOW_AND_ABOVE (strictest), BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH */
+    public GeminiClient(Supplier<Settings> settings, SecretStore secrets, Supplier<String> safety) {
+        this.safety = safety;
         this.settings = settings;
         this.secrets = secrets;
         this.executor = Executors.newCachedThreadPool(runnable -> {
@@ -60,6 +67,8 @@ public final class GeminiClient {
 
     /** The most function-call rounds one answer may take (call -> result -> call -> result -> text). */
     static final int MAX_TOOL_ROUNDS = 4;
+    static final String DEFAULT_SAFETY = "BLOCK_LOW_AND_ABOVE";
+    private static final String[] CATEGORIES = {"HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"};
 
     /**
      * @param systemPrompt the persona (systemInstruction); may be empty
@@ -86,6 +95,7 @@ public final class GeminiClient {
 
         long started = System.nanoTime();
         JsonObject body = body(cfg, systemPrompt, turns);
+        body.add("safetySettings", safetySettings(safety.get()));
         if (tools != null && !tools.isEmpty() && runner != null) body.add("tools", declarations(tools));
         CompletableFuture<GeminiResult> result;
         try {
@@ -182,6 +192,18 @@ public final class GeminiClient {
             // not usable: the caller falls back to interpret()
         }
         return null;
+    }
+
+    static JsonArray safetySettings(String threshold) {
+        String t = threshold == null || !threshold.matches("BLOCK_(LOW_AND_ABOVE|MEDIUM_AND_ABOVE|ONLY_HIGH|NONE)") ? DEFAULT_SAFETY : threshold;
+        JsonArray out = new JsonArray();
+        for (String category : CATEGORIES) {
+            JsonObject o = new JsonObject();
+            o.addProperty("category", category);
+            o.addProperty("threshold", t);
+            out.add(o);
+        }
+        return out;
     }
 
     static JsonArray declarations(List<ToolSpec> tools) {

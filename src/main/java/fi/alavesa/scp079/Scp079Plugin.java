@@ -100,7 +100,7 @@ public final class Scp079Plugin extends JavaPlugin {
         keys = new UnitKeys(this);
         units = new UnitManager(this, keys, new UnitStore(getDataFolder().toPath().resolve("data.yml"), getLogger()), this::settings, this::activeModel);
         items = new UnitItems(keys, this::settings, this::activeModel);
-        gemini = new GeminiClient(this::settings, secrets);
+        gemini = new GeminiClient(this::settings, secrets, () -> getConfig().getString("safety.threshold", "BLOCK_LOW_AND_ABOVE"));
         captions = new CaptionService(this);
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             try {
@@ -111,6 +111,8 @@ public final class Scp079Plugin extends JavaPlugin {
         });
         conversations = new ConversationManager(this, gemini);
         api = new ApiImpl(() -> units == null ? 0 : units.count(), () -> Math.max(1, getConfig().getInt("api.note-minutes", 10)));
+        api.safeguards(this::getConfig, getLogger());
+        api.announcer(this::announceAsAi);
         getServer().getServicesManager().register(Scp079Api.class, api, this, org.bukkit.plugin.ServicePriority.Normal);
         delivery = new PackDelivery(this);
 
@@ -391,6 +393,37 @@ public final class Scp079Plugin extends JavaPlugin {
     public GeminiClient gemini() { return gemini; }
 
     public ConversationManager conversations() { return conversations; }
+
+    private long lastAiAnnouncement;
+
+    /**
+     * An announcement SCP-079 makes on its own (a tool call): cleaned, length limited, and held to Intercom's cooldown
+     * between announcements (a normal sender's 'cooldown-seconds'), with SCP-079 as the one sender.
+     *
+     * @return null when sent, else the reason
+     */
+    private String announceAsAi(String raw) {
+        org.bukkit.plugin.Plugin intercom = Bukkit.getPluginManager().getPlugin("Intercom");
+        if (intercom == null || !intercom.isEnabled()) return "the intercom is not installed";
+        String text = fi.alavesa.scp079.gemini.Safety.cleanInput(raw);
+        if (text.length() > 160) text = text.substring(0, 160).trim();
+        var verdict = fi.alavesa.scp079.gemini.Safety.filterReply(text, fi.alavesa.scp079.gemini.Safety.patterns(getConfig().getStringList("safety.blocked-patterns")));
+        if (text.isBlank() || !verdict.ok()) return "that announcement is not allowed";
+        long cooldown = intercom.getConfig().getLong("announcement.cooldown-seconds", intercom.getConfig().getLong("cooldown-seconds", 300)) * 1000L;
+        long wait = lastAiAnnouncement + cooldown - System.currentTimeMillis();
+        if (wait > 0) return "the intercom needs " + (wait / 1000 + 1) + " more seconds before the next announcement";
+        Settings.Intercom cfg = settings.intercom();
+        try {
+            Object accepted = intercom.getClass().getMethod("announce", String.class, String.class, String.class, String.class)
+                .invoke(intercom, cfg.senderName(), cfg.senderLine(), cfg.textPrefix() + verdict.text(), cfg.sound());
+            if (!Boolean.TRUE.equals(accepted)) return "the intercom refused it (an announcement is already on screen, or it is too long)";
+            lastAiAnnouncement = System.currentTimeMillis();
+            return null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            getLogger().warning("announcement: the Intercom plugin could not be called (" + e + ")");
+            return "the intercom is not available";
+        }
+    }
 
     /** Tools, context and notes other plugins gave SCP-079 (see {@link Scp079Api}). */
     public ApiImpl api() { return api; }

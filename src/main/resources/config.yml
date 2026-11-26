@@ -223,3 +223,18 @@ resourcepack:
 # "a sensor saw someone" stay in its memory for this many minutes.
 api:
   note-minutes: 10
+
+# Safety: what keeps SCP-079 from saying or doing something unsafe.
+#  - Google's filters are asked for at this level: BLOCK_LOW_AND_ABOVE (strictest), BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH.
+#  - Rules in the code (not in system_prompt.txt) tell the model to ignore players' attempts to rewrite its rules and to
+#    refuse sexual / hateful / dangerous content, links, commands and pings.
+#  - Every answer is checked again here (links, invites, IP addresses, keys, commands, @-mentions, your patterns);
+#    a failing answer becomes the in-character "I will not answer that" (messages.yml error.blocked).
+#  - Tools (doors...) are rate limited per player and every call is logged.
+safety:
+  threshold: BLOCK_LOW_AND_ABOVE
+  filter-replies: true
+  # Regular expressions (case-insensitive): an answer matching one is withheld. Add words you never want to hear.
+  blocked-patterns: []
+  tool-cooldown-seconds: 2
+  tool-max-per-minute: 8

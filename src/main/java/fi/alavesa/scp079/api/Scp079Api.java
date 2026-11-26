@@ -51,6 +51,15 @@ public interface Scp079Api {
 
     void unregisterAll(Plugin owner);
 
+    /**
+     * SCP-079 speaks on the intercom (the Intercom plugin's banner, signed by SCP-079). For tools that act on the AI's
+     * behalf: the text is cleaned like any answer (no links, commands, pings...), and Intercom's announcement cooldown
+     * (its {@code cooldown-seconds}) applies to SCP-079 as one sender.
+     *
+     * @return null when it went out, else why not (a sentence for the model)
+     */
+    String announce(String text);
+
     /** Is there at least one unit placed? Tools usually only matter when SCP-079 exists. */
     boolean hasUnits();
 }

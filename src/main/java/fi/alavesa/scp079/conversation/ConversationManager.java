@@ -6,6 +6,7 @@ import fi.alavesa.scp079.config.Settings;
 import fi.alavesa.scp079.gemini.GeminiClient;
 import fi.alavesa.scp079.gemini.GeminiResult;
 import fi.alavesa.scp079.gemini.ReplySanitizer;
+import fi.alavesa.scp079.gemini.Safety;
 import fi.alavesa.scp079.gemini.ToolRunner;
 import fi.alavesa.scp079.gemini.Turn;
 import fi.alavesa.scp079.unit.Unit;
@@ -69,6 +70,7 @@ public final class ConversationManager {
 
     /** The repeating proximity check. */
     public void tick() {
+        drain();
         Settings settings = plugin.settings();
         Settings.Proximity cfg = settings.proximity();
         long now = System.currentTimeMillis();
@@ -168,7 +170,7 @@ public final class ConversationManager {
         Unit unit = plugin.units().get(state.activeUnit);
         if (unit == null) return;
 
-        String message = text.replaceAll("\\s+", " ").trim();
+        String message = Safety.cleanInput(text);
         if (message.isEmpty()) return;
         int max = settings.conversation().maxMessageLength();
         if (message.length() > max) message = message.substring(0, max);
@@ -182,11 +184,60 @@ public final class ConversationManager {
         request(player, state, unit, message, false);
     }
 
+    // ------------------------------------------------------------------ one message at a time
+
+    /** A chat line that arrived while SCP-079 was busy with someone else. */
+    private record Pending(UUID player, int unit, String text) { }
+
+    /** At most this many lines wait their turn; more are told to wait (privately). */
+    private static final int MAX_WAITING = 2;
+    private final java.util.Deque<Pending> waiting = new ArrayDeque<>();
+    /** Requests to Gemini in flight, over all players. Server thread only. */
+    private int inFlight;
+    /** Until when the line that was just shown is still being typed and read. */
+    private long quietUntil;
+
+    /**
+     * SCP-079 is one speaker: while it thinks about, types or lets someone read a line, it takes no new one. Greetings of
+     * players who walk up meanwhile are dropped (three players arriving get one greeting, not three), chat lines wait in
+     * a short queue and are answered one after another.
+     */
+    private boolean unitBusy() { return inFlight > 0 || System.currentTimeMillis() < quietUntil; }
+
+    private void drain() {
+        if (waiting.isEmpty() || unitBusy()) return;
+        Pending next = waiting.pollFirst();
+        Player player = Bukkit.getPlayer(next.player());
+        State state = states.get(next.player());
+        Unit unit = plugin.units().get(next.unit());
+        if (player == null || state == null || unit == null || state.activeUnit != next.unit()) return; // left in the meantime
+        request(player, state, unit, next.text(), false, true);
+    }
+
+    /** How long a line occupies the unit: typing it, then the hold the captions use, and a short pause. */
+    private long occupiedMillis(String line) {
+        Settings.Captions cfg = plugin.settings().captions();
+        double typing = line.length() / Math.max(0.1, cfg.charsPerTick());
+        double hold = Math.min(cfg.holdMaxTicks(), cfg.holdBaseTicks() + line.length() * cfg.holdTicksPerChar());
+        return (long) ((typing + hold + 20) * 50);
+    }
+
     private void request(Player player, State state, Unit unit, String userText, boolean greeting) {
+        request(player, state, unit, userText, greeting, false);
+    }
+
+    private void request(Player player, State state, Unit unit, String userText, boolean greeting, boolean fromQueue) {
+        if (!fromQueue && (unitBusy() || !waiting.isEmpty())) {
+            if (greeting) return;
+            if (waiting.size() >= MAX_WAITING) player.sendMessage(plugin.messages().component("error.still-thinking"));
+            else waiting.addLast(new Pending(player.getUniqueId(), unit.id(), userText));
+            return;
+        }
         if (!state.busy.compareAndSet(false, true)) {
             if (!greeting) speak(player, unit, plain(plugin.messages().component("error.still-thinking")), false);
             return;
         }
+        inFlight++;
         Settings settings = plugin.settings();
         state.lastRequest = System.currentTimeMillis();
         List<Turn> turns;
@@ -200,7 +251,7 @@ public final class ConversationManager {
         UUID playerId = player.getUniqueId();
         int unitId = unit.id();
         if (captions()) plugin.captions().thinking(player);
-        String prompt = plugin.systemPrompt() + plugin.api().promptFor(player);
+        String prompt = plugin.systemPrompt() + plugin.api().promptFor(player) + "\n\n" + Safety.RULES;
         var tools = plugin.api().specsFor(player);
         ToolRunner runner = (name, args) -> {
             CompletableFuture<String> done = new CompletableFuture<>();
@@ -233,12 +284,18 @@ public final class ConversationManager {
     }
 
     private void deliver(UUID playerId, int unitId, State state, int generation, GeminiResult result) {
+        inFlight = Math.max(0, inFlight - 1);
         state.busy.set(false);
         Settings settings = plugin.settings();
         String reply = result.ok() ? ReplySanitizer.clean(result.text(), settings.conversation().maxSentences()) : "";
         GeminiResult outcome = result.ok() && reply.isEmpty()
             ? new GeminiResult(null, GeminiResult.Error.EMPTY, result.status(), "the reply was empty after clean-up", result.millis())
             : result;
+        if (outcome.ok() && plugin.getConfig().getBoolean("safety.filter-replies", true)) {
+            Safety.Verdict verdict = Safety.filterReply(reply, Safety.patterns(plugin.getConfig().getStringList("safety.blocked-patterns")));
+            if (verdict.ok()) reply = verdict.text();
+            else outcome = new GeminiResult(null, GeminiResult.Error.BLOCKED, result.status(), "the reply was withheld by the safety filter: " + verdict.reason(), result.millis());
+        }
 
         synchronized (state) {
             if (state.generation != generation) { // the memory was reset while the request was running
@@ -304,6 +361,7 @@ public final class ConversationManager {
             plugin.captions().clear(player);
             return;
         }
+        quietUntil = Math.max(quietUntil, System.currentTimeMillis() + occupiedMillis(line));
         Settings settings = plugin.settings();
         Settings.Chat chat = settings.chat();
         Sound sound = chat.sound() == null ? null : Sound.sound(chat.sound(), Sound.Source.MASTER, chat.soundVolume(), chat.soundPitch());
@@ -365,5 +423,10 @@ public final class ConversationManager {
         return count;
     }
 
-    public void clear() { states.clear(); }
+    public void clear() {
+        states.clear();
+        waiting.clear();
+        inFlight = 0;
+        quietUntil = 0;
+    }
 }
