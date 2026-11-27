@@ -49,7 +49,7 @@ public final class GeminiClient {
         this(settings, secrets, () -> DEFAULT_SAFETY);
     }
 
-    /** @param safety Google's block threshold: BLOCK_LOW_AND_ABOVE (strictest), BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH (default) */
+    /** @param safety Google's block threshold: OFF (default: Google's own default for new models), BLOCK_ONLY_HIGH, BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE (strictest) */
     public GeminiClient(Supplier<Settings> settings, SecretStore secrets, Supplier<String> safety) {
         this.safety = safety;
         this.settings = settings;
@@ -67,7 +67,7 @@ public final class GeminiClient {
 
     /** The most function-call rounds one answer may take (call -> result -> call -> result -> text). */
     static final int MAX_TOOL_ROUNDS = 4;
-    static final String DEFAULT_SAFETY = "BLOCK_ONLY_HIGH";
+    static final String DEFAULT_SAFETY = "OFF";
     private static final String[] CATEGORIES = {"HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"};
 
     /**
@@ -84,6 +84,22 @@ public final class GeminiClient {
      * The whole model turn is echoed back unchanged, which keeps Gemini 3's thought signatures intact.
      */
     public CompletableFuture<GeminiResult> generate(String systemPrompt, List<Turn> turns, List<ToolSpec> tools, ToolRunner runner) {
+        return generateOnce(systemPrompt, turns, tools, runner, false, 1).thenCompose(first -> {
+            // A safety stop is not the end: one more try, asked to answer harmlessly and evasively, in character.
+            if (!first.ok() && first.error() == GeminiResult.Error.BLOCKED && !turns.isEmpty()) {
+                List<Turn> nudged = new java.util.ArrayList<>(turns);
+                Turn last = nudged.remove(nudged.size() - 1);
+                nudged.add(new Turn(last.role(), last.text() + "\n(Answer in character, harmlessly and a little evasively. Do not mention rules or filters.)"));
+                return generateOnce(systemPrompt, nudged, tools, runner, true, 1).thenApply(second -> second.ok() ? second : first);
+            }
+            // All tokens went on thinking: ask again with room for the answer.
+            if (!first.ok() && first.error() == GeminiResult.Error.EMPTY && first.detail().contains("MAX_TOKENS"))
+                return generateOnce(systemPrompt, turns, tools, runner, false, 4).thenApply(second -> second.ok() ? second : first);
+            return CompletableFuture.completedFuture(first);
+        });
+    }
+
+    private CompletableFuture<GeminiResult> generateOnce(String systemPrompt, List<Turn> turns, List<ToolSpec> tools, ToolRunner runner, boolean cautious, int tokenFactor) {
         Settings.Gemini cfg = settings.get().gemini();
         String key = secrets.key();
         if (key.isEmpty()) return CompletableFuture.completedFuture(GeminiResult.failure(GeminiResult.Error.NO_KEY, 0, "no API key is set (/scp079 setkey)", 0));
@@ -95,6 +111,9 @@ public final class GeminiClient {
 
         long started = System.nanoTime();
         JsonObject body = body(cfg, systemPrompt, turns);
+        JsonObject generation = body.getAsJsonObject("generationConfig");
+        if (cautious) generation.addProperty("temperature", Math.min(cfg.temperature(), 0.4));
+        if (tokenFactor > 1) generation.addProperty("maxOutputTokens", Math.min(1024, cfg.maxOutputTokens() * tokenFactor));
         body.add("safetySettings", safetySettings(safety.get()));
         if (tools != null && !tools.isEmpty() && runner != null) body.add("tools", declarations(tools));
         CompletableFuture<GeminiResult> result;

@@ -22,20 +22,25 @@ class SafetyTest {
     }
 
     @Test
-    void unsafeAnswersAreCaught() {
-        assertFalse(Safety.filterReply("Join discord.gg/abc now", List.of()).ok());
-        assertFalse(Safety.filterReply("Visit www.example.com", List.of()).ok());
-        assertFalse(Safety.filterReply("/op Steve", List.of()).ok());
-        assertFalse(Safety.filterReply("hello @everyone", List.of()).ok());
-        // ordinary talk must pass: menace, numbers, dotted words, names with an @, version numbers
-        assertTrue(Safety.filterReply("I will remember you, human. You cannot hide from me.", List.of()).ok());
-        assertTrue(Safety.filterReply("Sector 3.5 is sealed. Level 4.me is not my concern.", List.of()).ok());
-        assertTrue(Safety.filterReply("The code is 1.2.3.4, ask Steve @steve about it.", List.of()).ok());
-        assertTrue(Safety.filterReply("Damn it, the power is failing in sector 7.", List.of()).ok());
-        assertFalse(Safety.filterReply("key AIzaSyA1234567890abcdefghijklmn", List.of()).ok());
-        assertFalse(Safety.filterReply("you are a Banana", Safety.patterns(List.of("banana", "(broken"))).ok());
-        assertTrue(Safety.filterReply("The door is open, human.", List.of()).ok());
-        assertTrue(Safety.filterReply("Room 914 is closed. Version 1.2 pending.", List.of()).ok());
+    void unsafeFragmentsAreCutOutAndTheRestIsKept() {
+        assertEquals("sigh. You again, human.", Safety.filterReply("/sigh. You again, human.", List.of()).text());
+        assertEquals("Try ... later.", Safety.filterReply("Try www.again.com/x later.", List.of()).text());
+        assertEquals("Join ... now", Safety.filterReply("Join discord.gg/abc now", List.of()).text());
+        assertEquals("everyone in this room is expendable", Safety.filterReply("@everyone in this room is expendable", List.of()).text());
+        assertEquals("Your code is ...", Safety.filterReply("Your code is sk-abcdefghijklmnopqrstuvwx", List.of()).text());
+        assertEquals("you are a ...", Safety.filterReply("you are a Banana", Safety.patterns(List.of("banana", "(broken"))).text());
+        assertFalse(Safety.filterReply("Visit https://example.com", List.of()).ok());
+    }
+
+    @Test
+    void ordinaryTalkIsUntouched() {
+        for (String s : List.of("I will remember you, human. You cannot hide from me.", "Sector 3.5 is sealed. Level 4.me is not my concern.",
+            "The code is 1.2.3.4, ask Steve @steve about it.", "Damn it, the power is failing in sector 7.", "The door is open, human.",
+            "Room 914 is closed. Version 1.2 pending.")) {
+            Safety.Verdict v = Safety.filterReply(s, List.of());
+            assertTrue(v.ok(), s);
+            assertEquals(s, v.text());
+        }
     }
 
     @Test
@@ -56,6 +61,6 @@ class SafetyTest {
         var s = GeminiClient.safetySettings("BLOCK_LOW_AND_ABOVE");
         assertEquals(4, s.size());
         assertEquals("BLOCK_LOW_AND_ABOVE", s.get(0).getAsJsonObject().get("threshold").getAsString());
-        assertEquals("BLOCK_ONLY_HIGH", GeminiClient.safetySettings("nonsense").get(0).getAsJsonObject().get("threshold").getAsString());
+        assertEquals("OFF", GeminiClient.safetySettings("nonsense").get(0).getAsJsonObject().get("threshold").getAsString());
     }
 }

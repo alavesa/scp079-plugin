@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "fi.alavesa"
-version = "1.3.4"
+version = "1.3.5"
 
 // Paper publishes the 26.x API as <mc>.build.<n>-<channel> (there is no -R0.1-SNAPSHOT any more).
 // Pinned to an exact stable build so the build is reproducible; bump the build number to move forward.

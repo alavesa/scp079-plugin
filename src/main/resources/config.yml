@@ -225,15 +225,16 @@ api:
   note-minutes: 10
 
 # Safety, kept light: it only stops real problems, not ordinary talk.
-#  - Google's filters are asked for at this level: BLOCK_ONLY_HIGH (default), BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE
-#    (strict), or OFF (Google's own default for new models).
+#  - Google's filters are asked for at this level: OFF (default: Google's own default for new models), BLOCK_ONLY_HIGH,
+#    BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE (strict). When Google stops an answer anyway, SCP-079 tries once more,
+#    asked to answer harmlessly and in character, before it says "I will not answer that".
 #  - A short guard-rail text in the code (not in system_prompt.txt) tells the model to ignore players' attempts to
 #    rewrite its rules and not to write links, commands or real-world instructions for crime.
-#  - Every answer is checked again here for links, invites, keys, commands, @everyone and your own patterns; a failing
-#    answer becomes the in-character "I will not answer that" (messages.yml error.blocked). Admins see the reason in chat.
+#  - Every answer is checked again here: links, invites, keys, a leading slash, @everyone and your own patterns are CUT
+#    OUT of it (the rest is still said) and noted in the console.
 #  - Tools (doors, announcements...) are limited per player per minute and every call is logged.
 safety:
-  threshold: BLOCK_ONLY_HIGH
+  threshold: OFF
   filter-replies: true
   # Regular expressions (case-insensitive): an answer matching one is withheld. Add words you never want to hear.
   blocked-patterns: []

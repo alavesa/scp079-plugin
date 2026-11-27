@@ -100,7 +100,7 @@ public final class Scp079Plugin extends JavaPlugin {
         keys = new UnitKeys(this);
         units = new UnitManager(this, keys, new UnitStore(getDataFolder().toPath().resolve("data.yml"), getLogger()), this::settings, this::activeModel);
         items = new UnitItems(keys, this::settings, this::activeModel);
-        gemini = new GeminiClient(this::settings, secrets, () -> getConfig().getString("safety.threshold", "BLOCK_ONLY_HIGH"));
+        gemini = new GeminiClient(this::settings, secrets, () -> getConfig().getString("safety.threshold", "OFF"));
         captions = new CaptionService(this);
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             try {
@@ -175,6 +175,24 @@ public final class Scp079Plugin extends JavaPlugin {
                 getLogger().info("config.yml: chat.global true -> false (SCP-079's lines only reach players near the unit)");
             }
             getConfig().set("config-version", 4);
+            try {
+                getConfig().save(new File(getDataFolder(), "config.yml"));
+            } catch (IOException e) {
+                getLogger().warning("config.yml could not be saved (" + e.getMessage() + ") - the change applies until the next restart only");
+            }
+        }
+        // 1.3.5: the safety defaults of 1.3.2-1.3.4 blocked ordinary talk; servers still on one of them move to Google's own
+        // default (OFF) once, and the tool limits that refused several tools in one answer are lifted. A value you chose
+        // yourself (BLOCK_MEDIUM_AND_ABOVE, ...) stays.
+        if (configVersion < 5) {
+            String threshold = getConfig().getString("safety.threshold", "");
+            if (threshold.isEmpty() || threshold.equals("BLOCK_LOW_AND_ABOVE") || threshold.equals("BLOCK_ONLY_HIGH")) {
+                getConfig().set("safety.threshold", "OFF");
+                getLogger().info("config.yml: safety.threshold " + (threshold.isEmpty() ? "(unset)" : threshold) + " -> OFF (Google's own default; the reply filter and guard rails still apply)");
+            }
+            if (getConfig().getDouble("safety.tool-cooldown-seconds", 0) > 0) getConfig().set("safety.tool-cooldown-seconds", 0);
+            if (getConfig().getInt("safety.tool-max-per-minute", 20) < 20) getConfig().set("safety.tool-max-per-minute", 20);
+            getConfig().set("config-version", 5);
             try {
                 getConfig().save(new File(getDataFolder(), "config.yml"));
             } catch (IOException e) {
@@ -408,7 +426,7 @@ public final class Scp079Plugin extends JavaPlugin {
         String text = fi.alavesa.scp079.gemini.Safety.cleanInput(raw);
         if (text.length() > 160) text = text.substring(0, 160).trim();
         var verdict = fi.alavesa.scp079.gemini.Safety.filterReply(text, fi.alavesa.scp079.gemini.Safety.patterns(getConfig().getStringList("safety.blocked-patterns")));
-        if (text.isBlank() || !verdict.ok()) return "that announcement is not allowed";
+        if (verdict.text().isBlank()) return "that announcement is not allowed";
         long cooldown = intercom.getConfig().getLong("announcement.cooldown-seconds", intercom.getConfig().getLong("cooldown-seconds", 300)) * 1000L;
         long wait = lastAiAnnouncement + cooldown - System.currentTimeMillis();
         if (wait > 0) return "the intercom needs " + (wait / 1000 + 1) + " more seconds before the next announcement";

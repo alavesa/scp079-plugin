@@ -190,7 +190,7 @@ public final class ConversationManager {
     private record Pending(UUID player, int unit, String text) { }
 
     /** At most this many lines wait their turn; more are told to wait (privately). */
-    private static final int MAX_WAITING = 2;
+    private static final int MAX_WAITING = 3;
     private final java.util.Deque<Pending> waiting = new ArrayDeque<>();
     /** Requests to Gemini in flight, over all players. Server thread only. */
     private int inFlight;
@@ -218,8 +218,8 @@ public final class ConversationManager {
     private long occupiedMillis(String line) {
         Settings.Captions cfg = plugin.settings().captions();
         double typing = line.length() / Math.max(0.1, cfg.charsPerTick());
-        double hold = Math.min(cfg.holdMaxTicks(), cfg.holdBaseTicks() + line.length() * cfg.holdTicksPerChar());
-        return (long) ((typing + hold + 20) * 50);
+        // the next line simply replaces this one on screen, so only the typing and a short breath count
+        return (long) ((typing + 30) * 50);
     }
 
     private void request(Player player, State state, Unit unit, String userText, boolean greeting) {
@@ -293,8 +293,9 @@ public final class ConversationManager {
             : result;
         if (outcome.ok() && plugin.getConfig().getBoolean("safety.filter-replies", true)) {
             Safety.Verdict verdict = Safety.filterReply(reply, Safety.patterns(plugin.getConfig().getStringList("safety.blocked-patterns")));
-            if (verdict.ok()) reply = verdict.text();
-            else outcome = new GeminiResult(null, GeminiResult.Error.BLOCKED, result.status(), "the reply was withheld by the safety filter: " + verdict.reason(), result.millis());
+            if (!verdict.ok()) plugin.getLogger().info("safety filter: " + verdict.reason() + " (the rest of the answer is said)");
+            reply = verdict.text();
+            if (reply.isEmpty()) outcome = new GeminiResult(null, GeminiResult.Error.EMPTY, result.status(), "nothing was left of the reply after the safety filter", result.millis());
         }
 
         synchronized (state) {
