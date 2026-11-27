@@ -49,7 +49,7 @@ public final class GeminiClient {
         this(settings, secrets, () -> DEFAULT_SAFETY);
     }
 
-    /** @param safety Google's block threshold: BLOCK_LOW_AND_ABOVE (strictest), BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH */
+    /** @param safety Google's block threshold: BLOCK_LOW_AND_ABOVE (strictest), BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH (default) */
     public GeminiClient(Supplier<Settings> settings, SecretStore secrets, Supplier<String> safety) {
         this.safety = safety;
         this.settings = settings;
@@ -67,7 +67,7 @@ public final class GeminiClient {
 
     /** The most function-call rounds one answer may take (call -> result -> call -> result -> text). */
     static final int MAX_TOOL_ROUNDS = 4;
-    static final String DEFAULT_SAFETY = "BLOCK_LOW_AND_ABOVE";
+    static final String DEFAULT_SAFETY = "BLOCK_ONLY_HIGH";
     private static final String[] CATEGORIES = {"HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"};
 
     /**

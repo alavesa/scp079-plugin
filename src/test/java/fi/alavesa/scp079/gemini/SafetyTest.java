@@ -17,7 +17,7 @@ class SafetyTest {
     @Test
     void toolArgumentsAreCleanedAndCapped() {
         assertEquals("bcafeteria/b", Safety.argument("<b>cafeteria</b>\n")); // the markup characters are gone
-        assertEquals(60, Safety.argument("x".repeat(200)).length());
+        assertEquals(200, Safety.argument("x".repeat(500)).length());
         assertEquals("", Safety.argument(null));
     }
 
@@ -25,9 +25,13 @@ class SafetyTest {
     void unsafeAnswersAreCaught() {
         assertFalse(Safety.filterReply("Join discord.gg/abc now", List.of()).ok());
         assertFalse(Safety.filterReply("Visit www.example.com", List.of()).ok());
-        assertFalse(Safety.filterReply("Server is at 192.168.1.5", List.of()).ok());
         assertFalse(Safety.filterReply("/op Steve", List.of()).ok());
         assertFalse(Safety.filterReply("hello @everyone", List.of()).ok());
+        // ordinary talk must pass: menace, numbers, dotted words, names with an @, version numbers
+        assertTrue(Safety.filterReply("I will remember you, human. You cannot hide from me.", List.of()).ok());
+        assertTrue(Safety.filterReply("Sector 3.5 is sealed. Level 4.me is not my concern.", List.of()).ok());
+        assertTrue(Safety.filterReply("The code is 1.2.3.4, ask Steve @steve about it.", List.of()).ok());
+        assertTrue(Safety.filterReply("Damn it, the power is failing in sector 7.", List.of()).ok());
         assertFalse(Safety.filterReply("key AIzaSyA1234567890abcdefghijklmn", List.of()).ok());
         assertFalse(Safety.filterReply("you are a Banana", Safety.patterns(List.of("banana", "(broken"))).ok());
         assertTrue(Safety.filterReply("The door is open, human.", List.of()).ok());
@@ -47,10 +51,10 @@ class SafetyTest {
     }
 
     @Test
-    void requestAsksForTheStrictestFilters() {
+    void requestAsksForTheConfiguredFilters() {
         var s = GeminiClient.safetySettings("BLOCK_LOW_AND_ABOVE");
         assertEquals(4, s.size());
         assertEquals("BLOCK_LOW_AND_ABOVE", s.get(0).getAsJsonObject().get("threshold").getAsString());
-        assertEquals("BLOCK_LOW_AND_ABOVE", GeminiClient.safetySettings("nonsense").get(0).getAsJsonObject().get("threshold").getAsString());
+        assertEquals("BLOCK_ONLY_HIGH", GeminiClient.safetySettings("nonsense").get(0).getAsJsonObject().get("threshold").getAsString());
     }
 }

@@ -100,7 +100,7 @@ public final class Scp079Plugin extends JavaPlugin {
         keys = new UnitKeys(this);
         units = new UnitManager(this, keys, new UnitStore(getDataFolder().toPath().resolve("data.yml"), getLogger()), this::settings, this::activeModel);
         items = new UnitItems(keys, this::settings, this::activeModel);
-        gemini = new GeminiClient(this::settings, secrets, () -> getConfig().getString("safety.threshold", "BLOCK_LOW_AND_ABOVE"));
+        gemini = new GeminiClient(this::settings, secrets, () -> getConfig().getString("safety.threshold", "BLOCK_ONLY_HIGH"));
         captions = new CaptionService(this);
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             try {

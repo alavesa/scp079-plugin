@@ -63,6 +63,9 @@ public final class Scp079Command {
                 .then(Commands.argument("id", IntegerArgumentType.integer(1)).suggests(this::suggestUnits)
                     .executes(c -> remove(c, IntegerArgumentType.getInteger(c, "id")))))
             .then(Commands.literal("list").executes(this::list))
+            .then(Commands.literal("ask")
+                .then(Commands.argument("player", StringArgumentType.word()).suggests(this::suggestPlayers)
+                    .then(Commands.argument("text", StringArgumentType.greedyString()).executes(this::ask))))
             .then(Commands.literal("announce")
                 .then(Commands.argument("text", StringArgumentType.greedyString()).executes(this::announce)))
             .then(Commands.literal("reload").executes(this::reload))
@@ -100,6 +103,16 @@ public final class Scp079Command {
             msg().send(sender, "announce.no-intercom");
             return 0;
         }
+    }
+
+    /** Says a line as a player who stands near a unit (testing, and scripts): same path as typing it in chat. */
+    private int ask(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        org.bukkit.entity.Player target = Bukkit.getPlayerExact(StringArgumentType.getString(context, "player"));
+        if (target == null) { sender.sendMessage("No such player online."); return 0; }
+        if (!plugin.conversations().isTalking(target.getUniqueId())) { sender.sendMessage(target.getName() + " is not within talking distance of a unit."); return 0; }
+        plugin.conversations().onChat(target, StringArgumentType.getString(context, "text"));
+        return Command.SINGLE_SUCCESS;
     }
 
     private CompletableFuture<Suggestions> suggestUnits(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
