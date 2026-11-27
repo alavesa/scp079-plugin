@@ -195,7 +195,7 @@ public final class GeminiClient {
     }
 
     static JsonArray safetySettings(String threshold) {
-        String t = threshold == null || !threshold.matches("BLOCK_(LOW_AND_ABOVE|MEDIUM_AND_ABOVE|ONLY_HIGH|NONE)") ? DEFAULT_SAFETY : threshold;
+        String t = threshold == null || !threshold.matches("(BLOCK_(LOW_AND_ABOVE|MEDIUM_AND_ABOVE|ONLY_HIGH|NONE)|OFF)") ? DEFAULT_SAFETY : threshold;
         JsonArray out = new JsonArray();
         for (String category : CATEGORIES) {
             JsonObject o = new JsonObject();
@@ -332,7 +332,7 @@ public final class GeminiClient {
         if (!text.toString().isBlank()) return GeminiResult.success(text.toString(), status, millis);
 
         return switch (finishReason) {
-            case "SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY" ->
+            case "SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY" ->
                 GeminiResult.failure(GeminiResult.Error.BLOCKED, status, "the answer was blocked: " + finishReason, millis);
             case "MAX_TOKENS" ->
                 GeminiResult.failure(GeminiResult.Error.EMPTY, status,

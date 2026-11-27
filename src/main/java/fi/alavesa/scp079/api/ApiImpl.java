@@ -79,8 +79,8 @@ public final class ApiImpl implements Scp079Api {
         Owned<Tool> tool = tools.get(name);
         if (tool == null) return "error: there is no tool called " + name;
         var cfg = config.get();
-        long gap = (long) ((cfg == null ? 1.0 : cfg.getDouble("safety.tool-cooldown-seconds", 1.0)) * 1000);
-        int perMinute = cfg == null ? 10 : cfg.getInt("safety.tool-max-per-minute", 10);
+        long gap = (long) ((cfg == null ? 0.0 : cfg.getDouble("safety.tool-cooldown-seconds", 0.0)) * 1000);
+        int perMinute = cfg == null ? 20 : cfg.getInt("safety.tool-max-per-minute", 20);
         String limited = limiter.check(player.getUniqueId(), System.currentTimeMillis(), gap, perMinute);
         if (limited != null) {
             log.info("tool " + name + " by " + player.getName() + " refused: " + limited);

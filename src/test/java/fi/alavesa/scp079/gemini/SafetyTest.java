@@ -44,6 +44,7 @@ class SafetyTest {
         UUID p = UUID.randomUUID();
         assertNull(l.check(p, 0, 2000, 3));
         assertNotNull(l.check(p, 500, 2000, 3));
+        assertNull(new Safety.Limiter().check(UUID.randomUUID(), 0, 0, 3)); // no gap: several tools in one answer are fine
         assertNull(l.check(p, 3000, 2000, 3));
         assertNull(l.check(p, 6000, 2000, 3));
         assertNotNull(l.check(p, 9000, 2000, 3));

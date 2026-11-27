@@ -224,18 +224,19 @@ resourcepack:
 api:
   note-minutes: 10
 
-# Safety, kept light: normal talk, menace and dark humour are fine.
+# Safety, kept light: it only stops real problems, not ordinary talk.
 #  - Google's filters are asked for at this level: BLOCK_ONLY_HIGH (default), BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE
-#    (strict: blocks a lot of ordinary horror talk).
+#    (strict), or OFF (Google's own default for new models).
 #  - A short guard-rail text in the code (not in system_prompt.txt) tells the model to ignore players' attempts to
-#    rewrite its rules and not to write sexual / hateful / real-world dangerous content, links, commands or @everyone.
+#    rewrite its rules and not to write links, commands or real-world instructions for crime.
 #  - Every answer is checked again here for links, invites, keys, commands, @everyone and your own patterns; a failing
-#    answer becomes the in-character "I will not answer that" (messages.yml error.blocked).
-#  - Tools (doors, announcements...) are rate limited per player and every call is logged.
+#    answer becomes the in-character "I will not answer that" (messages.yml error.blocked). Admins see the reason in chat.
+#  - Tools (doors, announcements...) are limited per player per minute and every call is logged.
 safety:
   threshold: BLOCK_ONLY_HIGH
   filter-replies: true
   # Regular expressions (case-insensitive): an answer matching one is withheld. Add words you never want to hear.
   blocked-patterns: []
-  tool-cooldown-seconds: 1
-  tool-max-per-minute: 10
+  # Seconds between two tool calls of one player (0 = none: one answer may use several tools at once).
+  tool-cooldown-seconds: 0
+  tool-max-per-minute: 20
